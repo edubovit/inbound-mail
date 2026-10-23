@@ -82,3 +82,54 @@ test -f "$SOURCE/mailserver/__init__.py"
         assert "invalid commit ID" in result.stderr
         assert not (tmp_path / "release.tar.gz").exists()
     assert "ask RELEASE_URL" not in SCRIPT and "ask SHA256" not in SCRIPT
+
+
+@pytest.mark.parametrize("answers,exported,removed", [
+    (["yes", "EXPORT_PATH", ""], True, False),
+    (["yes", "EXPORT_PATH", "yes"], True, False),
+    (["yes", "EXPORT_PATH", "DELETE"], True, True),
+    (["no", "DELETE"], False, True),
+    (["", ""], False, False),
+    (["typo", "no", "delete"], False, False),
+])
+def test_export_and_removal_have_separate_explicit_consent(bash, tmp_path, answers, exported, removed):
+    for name in ["app/venv/bin", "conf", "data"]:
+        (tmp_path / name).mkdir(parents=True)
+    (tmp_path / "conf/owned").touch()
+    (tmp_path / "data/mail.sqlite3").touch()
+    fake_python = tmp_path / "app/venv/bin/python"
+    fake_python.write_text('#!/usr/bin/env bash\nprintf "EXPORTED\\n"\n')
+    fake_python.chmod(0o755)
+    answers = ["/export-test.tar" if value == "EXPORT_PATH" else value for value in answers]
+    helpers = SCRIPT[SCRIPT.index("confirm() {"):SCRIPT.index("port_used()")]
+    uninstall_prefix = SCRIPT[SCRIPT.index("uninstall() {"):SCRIPT.index("    systemctl disable --now")]
+    program = f'''set -Eeuo pipefail
+APP='{tmp_path.as_posix()}/app'
+CONF='{tmp_path.as_posix()}/conf'
+DATA='{tmp_path.as_posix()}/data'
+answers=({' '.join(repr(value) for value in answers)})
+index=0
+ask() {{
+    printf '%s\\n' "$2"
+    printf -v "$1" '%s' "${{answers[index]:-${{3:-}}}}"
+    index=$((index + 1))
+    test "$index" -le 8 || exit 99
+}}
+die() {{ echo "$*" >&2; exit 1; }}
+{helpers}
+{uninstall_prefix}
+    printf 'REMOVAL_AUTHORIZED\\n'
+}}
+uninstall
+'''
+    result = subprocess.run([bash, "-s"], input=program, text=True, capture_output=True, check=False)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert ("EXPORTED" in result.stdout) == exported
+    assert ("REMOVAL_AUTHORIZED" in result.stdout) == removed
+    assert "Type yes to continue" not in result.stdout
+    assert "Neither answer authorizes deletion" in result.stdout
+    assert "Type DELETE to uninstall" in result.stdout
+    if not removed:
+        assert "Uninstall cancelled" in result.stdout
+    if "typo" in answers:
+        assert "Invalid answer" in result.stdout

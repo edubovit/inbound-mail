@@ -14,13 +14,29 @@ ACTION=install
 die() { printf 'Error: %s\n' "$*" >&2; exit 1; }
 ask() {
     local value
-    read -r -p "$2${3:+ [$3]}: " value </dev/tty
+    read -r -p "$2${3:+ [$3]}: " value </dev/tty || die 'Terminal input closed; operation cancelled.'
     printf -v "$1" '%s' "${value:-${3:-}}"
 }
 confirm() {
     local answer
-    ask answer "$1 Type yes to continue" no
-    [[ "$answer" == yes ]]
+    while true; do
+        ask answer "$1 Enter yes or no" no
+        case "$answer" in
+            yes) return 0 ;;
+            no) return 1 ;;
+            *) printf 'Invalid answer. Enter yes or no; press Enter to select no.\n' ;;
+        esac
+    done
+}
+confirm_removal() {
+    local answer
+    printf '\nDelete all accounts, stored mail, application configuration, and owned certificates, and remove the application services and nginx site?\n'
+    printf 'This cannot be undone. Export files and unrelated services will be kept.\n'
+    ask answer 'Type DELETE to uninstall and permanently delete the data; press Enter to cancel'
+    if [[ "$answer" != DELETE ]]; then
+        printf 'Uninstall cancelled. The installation and its mail were not deleted. Any export already created is kept.\n'
+        return 1
+    fi
 }
 port_used() { ss -H -lnt "sport = :$1" | grep -q .; }
 valid_domain() {
@@ -50,13 +66,19 @@ exec </dev/tty || die 'An interactive terminal is required'
 uninstall() {
     local destination=
     [[ -f "$CONF/owned" && ! -L "$CONF" && ! -L "$APP" && ! -L "$DATA" ]] || die 'No owned installation found, or an owned directory is a symlink'
-    printf 'Uninstall permanently deletes all accounts, mail, app configuration, and owned certificates. Shared packages and services remain.\n'
-    if [[ -f "$DATA/mail.sqlite3" ]] && confirm 'Export mail before uninstalling?'; then
-        ask destination 'Absolute path for a new export archive (outside application directories)'
-        [[ "$destination" == /* && "$destination" != "$APP"/* && "$destination" != "$CONF"/* && "$destination" != "$DATA"/* ]] || die 'Choose an absolute path outside owned directories'
-        "$APP/venv/bin/python" -m mailserver.cli --config "$CONF/config.json" export "$destination"
+    printf 'Uninstall preparation. Nothing will be deleted until you type DELETE at the final prompt.\n'
+    if [[ -f "$DATA/mail.sqlite3" ]]; then
+        printf '\nOptional mail export: yes creates an archive; no skips the export. Neither answer authorizes deletion.\n'
+        if confirm 'Create a mail export now?'; then
+            ask destination 'Save export to a NEW file: enter an absolute path outside application directories'
+            [[ "$destination" == /* && "$destination" != "$APP"/* && "$destination" != "$CONF"/* && "$destination" != "$DATA"/* ]] || die 'Choose an absolute path outside owned directories'
+            "$APP/venv/bin/python" -m mailserver.cli --config "$CONF/config.json" export "$destination"
+            printf 'Mail export saved to %s. No accounts or mail have been deleted.\n' "$destination"
+        else
+            printf 'Mail export skipped. No accounts or mail have been deleted.\n'
+        fi
     fi
-    confirm 'Purge this installation and all its mail?' || exit 0
+    confirm_removal || exit 0
     systemctl disable --now inbound-mail-renew.timer inbound-mail-web.service inbound-mail-smtp.service 2>/dev/null || true
     systemctl stop inbound-mail-renew.service 2>/dev/null || true
     if [[ -e "$ENABLED" || -L "$ENABLED" ]]; then
@@ -80,7 +102,7 @@ if [[ "$ACTION" == uninstall ]]; then uninstall; exit; fi
 . /etc/os-release
 [[ "$ID" == ubuntu || "$ID" == debian ]] || die 'Only Ubuntu and Debian are supported'
 if [[ "$ID" != ubuntu || "$VERSION_ID" != 26.04 ]]; then
-    confirm "This is $PRETTY_NAME, not the reference Ubuntu 26.04. Continue best-effort?" || exit 0
+    confirm "This is $PRETTY_NAME, not the reference Ubuntu 26.04. Attempt installation on this best-effort platform?" || exit 0
 fi
 for path in "$APP" "$CONF" "$DATA" "$SITE" "$ENABLED" /usr/local/bin/inbound-mail /var/log/inbound-mail-acme /etc/systemd/system/inbound-mail-web.service /etc/systemd/system/inbound-mail-smtp.service /etc/systemd/system/inbound-mail-renew.service /etc/systemd/system/inbound-mail-renew.timer; do
     [[ ! -e "$path" && ! -L "$path" ]] || die "Path already exists: $path. Reinstallation/upgrades are not supported."
@@ -109,7 +131,7 @@ if ! number "$WEB_PORT" 65535 || ! number "$NGINX_PORT" 65535; then die 'Invalid
 ! port_used "$WEB_PORT" || die 'Application port is occupied'
 if port_used "$NGINX_PORT"; then
     ss -H -lntp "sport = :$NGINX_PORT" | grep -q nginx || die 'HTTPS listener is owned by another service; choose an nginx backend port'
-    confirm "Add a dedicated virtual host to existing nginx port $NGINX_PORT?" || exit 0
+    confirm "Allow the installer to add a mail virtual host to existing nginx port $NGINX_PORT?" || exit 0
 fi
 if command -v nginx >/dev/null && nginx -T 2>/dev/null | grep -E '^[[:space:]]*server_name ' | grep -Fwq "$UI_HOST"; then
     die 'The UI hostname is already configured in nginx'
@@ -123,7 +145,7 @@ fi
 printf '\nSet these DNS records (DNS-only, not proxied):\n%s. A %s\n%s. MX 10 %s.\n' "$DOMAIN" "$IP" "$DOMAIN" "$DOMAIN"
 [[ "$UI_HOST" == "$DOMAIN" ]] || printf '%s. A %s\n' "$UI_HOST" "$IP"
 printf 'Do not publish AAAA until IPv6 is configured. Allow inbound TCP 25, HTTPS, and TCP 80 for standalone certificate validation. Firewall/provider rules are not changed automatically.\n'
-confirm 'DNS and inbound firewall/provider rules are ready?' || exit 0
+confirm 'Have you configured the displayed DNS records and allowed the required inbound ports?' || exit 0
 ask CERT_MODE 'TLS: standalone (automatic ACME, TCP 80 must be free) or existing (operator-managed PEM)' standalone
 [[ "$CERT_MODE" == standalone || "$CERT_MODE" == existing ]] || die 'Invalid TLS mode'
 CERT_SOURCE=
@@ -141,7 +163,7 @@ fi
 ask ADMIN 'First ADMIN username'
 [[ "$ADMIN" =~ ^[a-z0-9]([a-z0-9._-]{0,62}[a-z0-9])?$ && "$ADMIN" != *..* ]] || die 'Invalid admin username'
 printf 'The password will be prompted securely after package installation; it is never a command-line argument.\n'
-confirm 'Install dependencies, create owned services and data, and add the dedicated nginx site?' || exit 0
+confirm 'Start installation now: install packages, create application services/data, and add the mail nginx site?' || exit 0
 
 WORK=$(mktemp -d)
 trap 'rm -rf -- "$WORK"' EXIT

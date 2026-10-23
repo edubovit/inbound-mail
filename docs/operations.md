@@ -134,8 +134,11 @@ failures need operator attention; the application sends no alerts.
 sudo bash /opt/inbound-mail/install.sh uninstall
 ```
 
-The script offers export and requires explicit confirmation before purging owned
-accounts, mail, configuration, services, nginx integration, and certificates.
+The export question is separate from removal: `yes` creates a mail archive and
+`no` skips it. Neither answer authorizes deletion. After export or skipping it,
+type the exact word `DELETE` at the final prompt to remove owned accounts, mail,
+configuration, services, nginx integration, and certificates. Press Enter or type
+anything else to cancel removal; any export already created is kept.
 Existing external certificates, unrelated services, shared packages, and exports
 are retained. Remove obsolete DNS records yourself. Deletion is not a guarantee
 of forensic erasure from storage media or provider snapshots.
