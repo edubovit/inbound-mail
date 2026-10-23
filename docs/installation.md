@@ -53,25 +53,33 @@ Developers can still install a trusted checkout or extracted application archive
 sudo bash install.sh --source "$PWD"
 ```
 
-The script asks for the receiving domain, public HTTPS UI URL, public IPv4,
+The script asks for the receiving domain, SMTP hostname (MX target), public HTTPS UI URL, public IPv4,
 loopback web port (default 20025), nginx TLS port, storage limits, DNS readiness,
 certificate mode, and the first ADMIN username/password. A UI URL may include a
 port but cannot contain a path. Confirmations precede installation changes.
 
 ## DNS and network
 
-For mail to `username@inbox.example.com` and UI at `https://inbox.example.com`:
+For mail to `username@example.com`, SMTP at `mail.example.com`, and UI at
+`https://inbox.example.com`:
 
 | Type | Name | Value |
 | --- | --- | --- |
-| A | `inbox.example.com` | Your public IPv4, e.g. documentation address `192.0.2.10` |
-| MX | `inbox.example.com` | Priority **10**, target `inbox.example.com.` |
+| MX | `example.com` | Priority **10**, target `mail.example.com.` |
+| A | `mail.example.com` | Your public IPv4, e.g. documentation address `192.0.2.10` |
+| A | `inbox.example.com` | The same public IPv4 for the UI |
 
-A different UI hostname needs its own A record. Use DNS-only records, not an
+No A record for `example.com` is required; leave its website DNS untouched.
+The UI and SMTP hostname may be identical, in which case only one A record is
+needed. The SMTP hostname defaults to `mail.<receiving-domain>` in the prompt;
+enter the receiving domain itself if you deliberately want both names identical.
+Use DNS-only records, not an
 HTTP proxy. Leave unrelated mail-domain MX records unchanged. The installer binds
 SMTP to IPv4; omit AAAA until IPv6 reception and HTTPS routing are explicitly
-configured and tested. Standalone certificate mode rejects published AAAA records
-and checks the supplied A and MX values before issuance.
+configured and tested. Standalone certificate mode checks A records and rejects
+published AAAA records for the SMTP and UI hostnames, not the receiving domain.
+It requires an MX entry for the receiving domain targeting the SMTP hostname;
+the suggested priority is 10, but other MX priorities are accepted.
 
 Required inbound access:
 
@@ -118,7 +126,7 @@ use compatible operator-managed certificates rather than standalone ACME.
 
 ## Certificates
 
-**Standalone:** the installer requests a certificate covering the receiving domain
+**Standalone:** the installer requests a certificate covering the SMTP hostname
 and UI hostname. Certificate state is isolated under `/etc/inbound-mail/acme`;
 the work directory is `/etc/inbound-mail/acme-work`. An optional external contact
 email can be supplied. `inbound-mail-renew.timer` schedules checks twice daily

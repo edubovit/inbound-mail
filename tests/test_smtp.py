@@ -103,3 +103,20 @@ def test_rate_expiry():
         assert not limiter.allow("test", 1)
     with patch("mailserver.smtp.time.monotonic", return_value=3611):
         assert limiter.allow("test", 1)
+
+
+def test_smtp_hostname_does_not_change_recipient_domain(smtp_server, alice, raw, settings):
+    settings.SMTP_HOSTNAME = "mx.example.com"
+    client = smtplib.SMTP(timeout=5)
+    with client:
+        code, banner = client.connect("127.0.0.1", smtp_server)
+        assert code == 220 and banner.startswith(b"mx.example.com ")
+        code, response = client.ehlo()
+        assert code == 250 and response.splitlines()[0] == b"mx.example.com"
+        client.mail("sender@example.org")
+        assert client.rcpt("alice@mx.example.com")[0] == 550
+        client.rset()
+        assert client.sendmail("sender@example.org", alice.address, raw) == {}
+    item = Message.objects.get()
+    assert item.account == alice
+    assert bytes(item.raw) == raw

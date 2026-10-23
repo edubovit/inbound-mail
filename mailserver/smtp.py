@@ -132,7 +132,7 @@ class InboundSMTP(SMTP):
 
 
 def factory(handler, tls_context=None):
-    return InboundSMTP(handler, hostname=settings.MAIL_DOMAIN, ident="Inbound", data_size_limit=settings.MAX_MESSAGE_BYTES,
+    return InboundSMTP(handler, hostname=settings.SMTP_HOSTNAME, ident="Inbound", data_size_limit=settings.MAX_MESSAGE_BYTES,
                        enable_SMTPUTF8=False, decode_data=False, tls_context=tls_context,
                        require_starttls=False, auth_exclude_mechanism=["LOGIN", "PLAIN"],
                        command_call_limit=200, timeout=120)

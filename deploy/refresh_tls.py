@@ -1,5 +1,4 @@
 import argparse
-import grp
 import json
 import os
 import ssl
@@ -8,7 +7,13 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 
+def certificate_hosts(config):
+    return {config.get("smtp_hostname", config["domain"]).lower(), urlsplit(config["ui_url"]).hostname}
+
+
 def main():
+    import grp
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--no-restart", action="store_true")
     args = parser.parse_args()
@@ -17,7 +22,7 @@ def main():
     config = json.loads(Path("/etc/inbound-mail/config.json").read_text())
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     context.load_cert_chain(config["certificate_source"], config["private_key_source"])
-    for host in {config["domain"], urlsplit(config["ui_url"]).hostname}:
+    for host in certificate_hosts(config):
         subprocess.run(["openssl", "x509", "-in", config["certificate_source"], "-noout", "-checkhost", host], check=True, stdout=subprocess.DEVNULL)
     subprocess.run(["openssl", "x509", "-in", config["certificate_source"], "-noout", "-checkend", "86400"], check=True, stdout=subprocess.DEVNULL)
     group = grp.getgrnam("inbound-mail").gr_gid

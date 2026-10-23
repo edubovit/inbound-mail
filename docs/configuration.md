@@ -54,13 +54,18 @@ are in memory and reset when that service restarts.
 | JSON key | Installed value or source | Meaning |
 | --- | --- | --- |
 | `domain` | Receiving-domain prompt | Domain accepted for local recipients |
+| `smtp_hostname` | SMTP-hostname prompt (suggests `mail.<domain>`) | MX target and SMTP greeting/EHLO name; defaults to `domain` if omitted |
 | `ui_url` | HTTPS URL prompt | Allowed web host, trusted CSRF origin |
 | `secret_key` | Randomly generated | Django signing/session security secret; never publish |
 | `data_dir` | `/var/lib/inbound-mail` | Directory containing `mail.sqlite3` |
 | `smtp_host` | `0.0.0.0` | IPv4 SMTP bind address |
 | `smtp_port` | 25 | SMTP listen port |
 
-Do not treat these as a domain-migration facility. Changing a domain or UI hostname
+The receiving domain and SMTP hostname are independent: `example.com` can receive
+mail through `mail.example.com` without an A record for `example.com`.
+`smtp_host` is a bind address, not the DNS hostname.
+
+Do not treat these as a domain-migration facility. Changing a domain, SMTP or UI hostname
 also requires coordinated DNS, certificates, nginx, and sender configuration.
 Changing `data_dir` does not move data or update systemd write permissions. Changing
 `secret_key` invalidates existing authentication sessions.
@@ -77,6 +82,10 @@ coordinated service/proxy edits and external checks; JSON alone is insufficient.
 | `tls_key` | Runtime private key, installed at `/etc/inbound-mail/tls/privkey.pem` |
 | `certificate_source` | Full-chain source used by the refresh tool |
 | `private_key_source` | Private-key source used by the refresh tool |
+
+The certificate must cover `smtp_hostname` and the UI hostname, not the receiving
+domain unless it is also used for one of those hostnames. The refresh tool uses
+`domain` as the SMTP hostname when `smtp_hostname` is omitted.
 
 Production SMTP requires a certificate/key pair to offer STARTTLS; sending servers
 are not required to use TLS. Runtime copies are root-owned, group-readable, mode

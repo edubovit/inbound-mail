@@ -183,3 +183,73 @@ echo PROCEED
     result = subprocess.run([bash, "-s"], input=program, text=True, capture_output=True, check=True)
     assert ("PROCEED" in result.stdout) == proceeds
     assert ("does not connect those ports" in result.stdout) == (public != backend)
+
+
+@pytest.mark.parametrize("smtp_host,ui_host,mx,success", [
+    ("mail.example.com", "web.example.com", "10 mail.example.com.", True),
+    ("mail.example.com", "mail.example.com", "20 MAIL.EXAMPLE.COM.", True),
+    ("example.com", "example.com", "10 example.com.", True),
+    ("mail.example.com", "web.example.com", "10 other.example.com.", False),
+])
+def test_dns_and_certificate_targets_are_independent_of_receiving_domain(bash, tmp_path, smtp_host, ui_host, mx, success):
+    dns_start = SCRIPT.index("printf '\\nSet these DNS records")
+    dns_end = SCRIPT.index("confirm 'Have you configured", dns_start)
+    start = SCRIPT.index('    ! port_used 80 || die \'TCP 80 became occupied')
+    end = SCRIPT.index('\n    CERT_SOURCE=', start)
+    program = f'''set -Eeuo pipefail
+DOMAIN=example.com
+SMTP_HOSTNAME={smtp_host}
+UI_HOST={ui_host}
+IP=192.0.2.10
+ACME_EMAIL=
+CONF='{tmp_path.as_posix()}'
+die() {{ echo "$*" >&2; exit 1; }}
+port_used() {{ return 1; }}
+dig() {{
+    echo "QUERY $2 $3" >&2
+    case "$2" in
+        A) echo 192.0.2.10 ;;
+        MX) echo '{mx}' ;;
+        AAAA) return 0 ;;
+    esac
+}}
+certbot() {{ printf '%s\\n' "$@"; }}
+{SCRIPT[dns_start:dns_end]}
+{SCRIPT[start:end]}
+'''
+    result = subprocess.run([bash, "-s"], input=program, text=True, capture_output=True, check=False)
+    assert (result.returncode == 0) == success, result.stderr
+    assert f"example.com. MX 10 {smtp_host}." in result.stdout
+    assert f"{smtp_host}. A 192.0.2.10" in result.stdout
+    if smtp_host != "example.com":
+        assert "QUERY A example.com" not in result.stderr
+        assert "QUERY AAAA example.com" not in result.stderr
+        assert "\nexample.com. A " not in result.stdout
+    if success:
+        names = result.stdout.splitlines()
+        certificate_names = [names[i + 1] for i, value in enumerate(names[:-1]) if value == "-d"]
+        assert set(certificate_names) == {smtp_host, ui_host}
+        assert len(certificate_names) == len(set(certificate_names))
+
+
+def test_installed_config_records_both_domains(bash, tmp_path):
+    start = SCRIPT.index('python3 - "$CONF/config.json"')
+    end = SCRIPT.index('\nchown root:inbound-mail "$CONF/config.json"', start)
+    program = f'''set -Eeuo pipefail
+CONF='{tmp_path.as_posix()}'
+DOMAIN=example.com
+SMTP_HOSTNAME=mail.example.com
+UI_URL=https://web.example.com
+MAX_MIB=25
+QUOTA_MIB=1024
+RESERVE_MIB=1024
+CERT_SOURCE=/cert.pem
+KEY_SOURCE=/key.pem
+python3() {{ '{Path(sys.executable).as_posix()}' "$@"; }}
+{SCRIPT[start:end]}
+'''
+    subprocess.run([bash, "-s"], input=program, text=True, capture_output=True, check=True)
+    config = json.loads((tmp_path / "config.json").read_text())
+    assert config["domain"] == "example.com"
+    assert config["smtp_hostname"] == "mail.example.com"
+    assert config["ui_url"] == "https://web.example.com"

@@ -128,7 +128,9 @@ if command -v nginx >/dev/null; then check_nginx_config || die 'Resolve existing
 
 ask DOMAIN 'Receiving domain (ASCII, lowercase)'
 valid_domain "$DOMAIN" || die 'Invalid domain'
-ask UI_URL 'Public UI URL (https://hostname, no path)' "https://$DOMAIN"
+ask SMTP_HOSTNAME 'SMTP hostname (MX target; ASCII, lowercase)' "mail.$DOMAIN"
+valid_domain "$SMTP_HOSTNAME" || die 'Invalid SMTP hostname'
+ask UI_URL 'Public UI URL (https://hostname, no path)' "https://$SMTP_HOSTNAME"
 [[ "$UI_URL" =~ ^https://([^/:]+)(:([0-9]+))?/?$ ]] || die 'Use an HTTPS URL without credentials, query, or path'
 UI_HOST=${BASH_REMATCH[1]}
 PUBLIC_PORT=${BASH_REMATCH[3]:-443}
@@ -155,8 +157,9 @@ ask RESERVE_MIB 'Free-disk reserve (MiB)' 1024
 if ! number "$MAX_MIB" 100 || ! number "$QUOTA_MIB" 1048576 || ! number "$RESERVE_MIB" 1048576; then
     die 'Invalid limits (message maximum: 100 MiB)'
 fi
-printf '\nSet these DNS records (DNS-only, not proxied):\n%s. A %s\n%s. MX 10 %s.\n' "$DOMAIN" "$IP" "$DOMAIN" "$DOMAIN"
-[[ "$UI_HOST" == "$DOMAIN" ]] || printf '%s. A %s\n' "$UI_HOST" "$IP"
+printf '\nSet these DNS records (DNS-only, not proxied):\n%s. A %s\n%s. MX 10 %s.\n' "$SMTP_HOSTNAME" "$IP" "$DOMAIN" "$SMTP_HOSTNAME"
+[[ "$UI_HOST" == "$SMTP_HOSTNAME" ]] || printf '%s. A %s\n' "$UI_HOST" "$IP"
+printf 'Mailbox addresses will be username@%s. The receiving domain needs no A record unless you also use it as the SMTP or UI hostname.\n' "$DOMAIN"
 printf 'Do not publish AAAA until IPv6 is configured. Allow inbound TCP 25, HTTPS, and TCP 80 for standalone certificate validation. Firewall/provider rules are not changed automatically.\n'
 confirm 'Have you configured the displayed DNS records and allowed the required inbound ports?' || exit 0
 ask CERT_MODE 'TLS: standalone (automatic ACME, TCP 80 must be free) or existing (operator-managed PEM)' standalone
@@ -167,9 +170,9 @@ if [[ "$CERT_MODE" == standalone ]]; then
     ! port_used 80 || die 'TCP 80 is occupied. Use existing certificates, or arrange a compatible ACME method separately; no service will be stopped.'
     ask ACME_EMAIL 'External contact email for certificate account recovery (blank to omit)'
     [[ -z "$ACME_EMAIL" || ( "$ACME_EMAIL" == *@*.* && "$ACME_EMAIL" != -* ) ]] || die 'Invalid contact email'
-    confirm "Agree to the Let's Encrypt subscriber agreement and request a public certificate for $DOMAIN and $UI_HOST?" || exit 0
+    confirm "Agree to the Let's Encrypt subscriber agreement and request a public certificate for SMTP hostname $SMTP_HOSTNAME and UI hostname $UI_HOST?" || exit 0
 else
-    ask CERT_SOURCE 'Absolute path to PEM full chain (must cover receiving domain and UI hostname)'
+    ask CERT_SOURCE 'Absolute path to PEM full chain (must cover SMTP hostname and UI hostname)'
     ask KEY_SOURCE 'Absolute path to PEM private key'
     [[ "$CERT_SOURCE" == /* && "$KEY_SOURCE" == /* && -f "$CERT_SOURCE" && -f "$KEY_SOURCE" ]] || die 'Certificate files do not exist'
 fi
@@ -229,25 +232,27 @@ install -d -m 750 -g inbound-mail "$CONF/tls"
 
 if [[ "$CERT_MODE" == standalone ]]; then
     ! port_used 80 || die 'TCP 80 became occupied; cannot safely request certificate'
-    [[ "$(dig +short A "$DOMAIN" | tail -n1)" == "$IP" ]] || die 'Receiving-domain A record does not match the supplied IPv4'
+    [[ "$(dig +short A "$SMTP_HOSTNAME" | tail -n1)" == "$IP" ]] || die 'SMTP-hostname A record does not match the supplied IPv4'
     [[ "$(dig +short A "$UI_HOST" | tail -n1)" == "$IP" ]] || die 'UI A record does not match the supplied IPv4'
-    dig +short MX "$DOMAIN" | grep -Fxiq "10 $DOMAIN." || die 'Expected MX record is not visible yet'
-    for name in "$DOMAIN" "$UI_HOST"; do
+    dig +short MX "$DOMAIN" | awk '{print tolower($2)}' | grep -Fxq "$SMTP_HOSTNAME." || die 'Receiving-domain MX record does not point to the SMTP hostname'
+    for name in "$SMTP_HOSTNAME" "$UI_HOST"; do
         [[ -z "$(dig +short AAAA "$name")" ]] || die 'Remove unverified AAAA records before this IPv4-only installation'
     done
     CONTACT=(--register-unsafely-without-email)
     [[ -z "$ACME_EMAIL" ]] || CONTACT=(--email "$ACME_EMAIL")
+    CERT_NAMES=(-d "$SMTP_HOSTNAME")
+    [[ "$UI_HOST" == "$SMTP_HOSTNAME" ]] || CERT_NAMES+=(-d "$UI_HOST")
     certbot certonly --standalone --non-interactive --agree-tos "${CONTACT[@]}" --cert-name inbound-mail \
         --config-dir "$CONF/acme" --work-dir "$CONF/acme-work" --logs-dir /var/log/inbound-mail-acme \
-        -d "$DOMAIN" -d "$UI_HOST"
+        "${CERT_NAMES[@]}"
     CERT_SOURCE="$CONF/acme/live/inbound-mail/fullchain.pem"
     KEY_SOURCE="$CONF/acme/live/inbound-mail/privkey.pem"
 fi
 
-python3 - "$CONF/config.json" "$DOMAIN" "$UI_URL" "$MAX_MIB" "$QUOTA_MIB" "$RESERVE_MIB" "$CERT_SOURCE" "$KEY_SOURCE" <<'PY'
+python3 - "$CONF/config.json" "$DOMAIN" "$SMTP_HOSTNAME" "$UI_URL" "$MAX_MIB" "$QUOTA_MIB" "$RESERVE_MIB" "$CERT_SOURCE" "$KEY_SOURCE" <<'PY'
 import json, secrets, sys
-path, domain, url, maximum, quota, reserve, cert, key = sys.argv[1:]
-config = dict(domain=domain, ui_url=url, secret_key=secrets.token_urlsafe(48), data_dir='/var/lib/inbound-mail',
+path, domain, smtp_hostname, url, maximum, quota, reserve, cert, key = sys.argv[1:]
+config = dict(domain=domain, smtp_hostname=smtp_hostname, ui_url=url, secret_key=secrets.token_urlsafe(48), data_dir='/var/lib/inbound-mail',
               max_message_mib=int(maximum), mailbox_quota_mib=int(quota), disk_reserve_mib=int(reserve),
               smtp_host='0.0.0.0', smtp_port=25, tls_cert='/etc/inbound-mail/tls/fullchain.pem',
               tls_key='/etc/inbound-mail/tls/privkey.pem', certificate_source=cert, private_key_source=key)
@@ -370,7 +375,7 @@ import smtplib
 with smtplib.SMTP('127.0.0.1', 25, timeout=10) as client:
     assert client.ehlo()[0] == 250
 PY
-printf '\nInstalled: %s\nReceiving: %s\nConfig: %s/config.json\n' "$UI_URL" "$DOMAIN" "$CONF"
+printf '\nInstalled: %s\nReceiving: %s\nSMTP hostname: %s\nConfig: %s/config.json\n' "$UI_URL" "$DOMAIN" "$SMTP_HOSTNAME" "$CONF"
 printf 'Verify delivery from outside this VPS. Existing Xray/proxy routing and firewalls were not changed.\n'
 if [[ "$PUBLIC_PORT" != "$NGINX_PORT" ]]; then printf 'Public HTTPS must already route to nginx port %s; verify externally before using accounts.\n' "$NGINX_PORT"; fi
 if [[ "$CERT_MODE" == existing ]]; then printf 'After certificate renewal, run: python3 /opt/inbound-mail/deploy/refresh_tls.py\n'; fi

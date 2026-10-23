@@ -28,15 +28,18 @@ curl -fsSL https://raw.githubusercontent.com/edubovit/inbound-mail/master/instal
 
 No clone or manual archive download is needed. This runs repository code as root;
 download and inspect the script first if you need to review it.
-Follow the prompts for your domain, UI URL, ports, limits, TLS, and admin password.
+Follow the prompts for your receiving domain, SMTP hostname, UI URL, limits, TLS,
+and admin password.
 Configure these DNS records using your own domain and IP, **without HTTP proxying**:
 
 ```text
-inbox.example.com.  A   192.0.2.10
-inbox.example.com.  MX  10 inbox.example.com.
+example.com.       MX  10 mail.example.com.
+mail.example.com.  A   192.0.2.10
 ```
 
-The address above is documentation-only. The installer does not change firewalls
+This receives `user@example.com` without requiring an A record for `example.com`.
+The UI can use `https://mail.example.com` or another hostname with its own A record.
+The IP above is documentation-only. The installer does not change firewalls
 or external proxy routing. See [installation](docs/installation.md) for download
 mode, shared hosts, certificates, and external delivery checks.
 

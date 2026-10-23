@@ -9,6 +9,7 @@ CONFIG = json.loads(Path(CONFIG_PATH).read_text()) if CONFIG_PATH else {}
 DEVELOPMENT = not CONFIG_PATH
 DATA_DIR = Path(CONFIG["data_dir"] if CONFIG_PATH else os.environ.get("MAIL_DEV_DATA", BASE_DIR.parent / ".local" / "data"))
 MAIL_DOMAIN = CONFIG.get("domain", "mail.test").lower()
+SMTP_HOSTNAME = CONFIG.get("smtp_hostname", MAIL_DOMAIN).lower()
 UI_URL = CONFIG.get("ui_url", "http://127.0.0.1:8000")
 UI_HOST = urlsplit(UI_URL).hostname
 SECRET_KEY = CONFIG["secret_key"] if CONFIG_PATH else "local-development-only-not-for-deployment"
