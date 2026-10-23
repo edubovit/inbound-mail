@@ -95,10 +95,23 @@ prove delivery; some networks block outbound TCP 25 at the sender.
 
 ## Shared hosts
 
-The installer validates existing nginx configuration and adds a dedicated site
-at `/etc/nginx/sites-available/inbound-mail`, enabled by a symlink. An existing
-nginx TLS port can host the new name after confirmation. A port owned by another
-service cannot be taken over. Existing sites are not replaced.
+The installer validates existing nginx configuration. When the selected TLS port
+is already served by nginx, choose its integration mode:
+
+- **dedicated** adds `/etc/nginx/sites-available/inbound-mail` and its enabled
+  symlink. Use it for a separate hostname/server block.
+- **shared** inserts one marked include into an existing server block, adding mail
+  at `/` while preserving locations such as `/monitoring/`. Supply the absolute
+  path to the active site file. It must contain exactly one matching explicit
+  hostname/TLS-port block, without an existing root location or overlapping mail
+  routes. Only operator-managed `existing` certificate mode is supported; nginx's
+  existing certificate directives remain unchanged.
+
+A port owned by another service cannot be taken over. Shared mode rejects regex
+or named locations, server-level includes/rewrites/returns, multiple names in the
+selected block, and mixed listener ports rather than guessing how to merge them.
+Such layouts require manual integration. Shared-site validation happens before
+package installation or account creation, and again when the include is inserted.
 
 The same hostname may be used on different nginx ports. For direct access at
 `https://inbox.example.com:20002`, specify that full UI URL and nginx port `20002`.
@@ -111,10 +124,11 @@ enabled link is removed on rejection; the running configuration is not reloaded.
 This validation occurs after app setup, so use the uninstaller to remove the
 partial installation before retrying with a different hostname or port.
 
-The installer does not merge paths into an existing server block. An existing
-site that only serves `/monitoring/` still owns its hostname/listener. Adding mail
-at `/` on that same listener requires deliberate manual integration, not a second
-server block with the same name.
+Shared mode stores its root location in `/etc/inbound-mail/nginx-root.conf` and
+ownership information in `/etc/inbound-mail/nginx-shared.json`. It validates nginx
+before reload and rolls back its file edit if validation fails. Uninstall removes
+only the exact managed include, preserving other site edits. If that include has
+been manually changed, cleanup refuses to guess and retains app data for inspection.
 
 If another TLS router owns public 443, use its nginx backend port and arrange
 routing for the UI hostname separately. The generated site listens on both nginx

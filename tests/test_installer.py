@@ -62,7 +62,7 @@ else:
     if mode == "failed_download":
         (tmp_path / "fail").touch()
     start = SCRIPT.index("    command -v curl >/dev/null || die 'Install curl first'")
-    end = SCRIPT.index('\nfi\n\ninstall -d -m 750 "$CONF"', start)
+    end = SCRIPT.index('\nfi\n', start)
     block = SCRIPT[start:end]
     program = f'''set -Eeuo pipefail
 WORK='{tmp_path.as_posix()}'
@@ -144,7 +144,7 @@ uninstall
 def test_nginx_validation_rejects_ignored_duplicate_names(bash, tmp_path, warning, status, accepted):
     helper = SCRIPT[SCRIPT.index("check_nginx_config() {"):SCRIPT.index('\nwhile (($#));')]
     start = SCRIPT.index('if ! check_nginx_config; then')
-    end = SCRIPT.index('\n\nif [[ "$CERT_MODE" == standalone ]]; then', start)
+    end = SCRIPT.index('\nfi\n', start) + len('\nfi')
     block = SCRIPT[start:end]
     enabled = tmp_path / "enabled-site"
     enabled.touch()

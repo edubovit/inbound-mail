@@ -42,6 +42,7 @@ def test_release_metadata_and_contents_are_portable(tmp_path):
     with tarfile.open(tmp_path / "dist/inbound-mail-0.1.0.tar.gz") as archive:
         names = archive.getnames()
         assert "inbound-mail/mailserver/static/inbox.js" in names
+        assert "inbound-mail/deploy/shared_nginx.py" in names
         assert "inbound-mail/CONTRIBUTING.md" in names
         assert "inbound-mail/docs/configuration.md" in names
         assert "inbound-mail/docs/images/inbox.png" in names

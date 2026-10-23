@@ -46,6 +46,7 @@ message sizes/recipient counts, not message bodies. Treat logs as private anyway
 | `/var/lib/inbound-mail/mail.sqlite3` | Mail, accounts, sessions, login-attempt state |
 | `/etc/nginx/sites-available/inbound-mail` | Owned nginx virtual host |
 | `/etc/nginx/sites-enabled/inbound-mail` | Enabled-site symlink |
+| `/etc/inbound-mail/nginx-root.conf`, `nginx-shared.json` | Shared-site root location and ownership record, when shared mode is selected |
 | `/etc/systemd/system/inbound-mail-{web,smtp}.service` | Application services |
 | `/usr/local/bin/inbound-mail` | CLI wrapper with production configuration selected |
 
@@ -142,3 +143,9 @@ anything else to cancel removal; any export already created is kept.
 Existing external certificates, unrelated services, shared packages, and exports
 are retained. Remove obsolete DNS records yourself. Deletion is not a guarantee
 of forensic erasure from storage media or provider snapshots.
+
+In shared-site mode, uninstall removes only the managed include and its snippet,
+not the existing server block or other locations. It validates and reloads nginx
+before deleting app data. If the marker has been edited or configuration validation
+fails, it stops with the installation data retained rather than removing someone
+else's site. Do not delete the ownership record to bypass that check.

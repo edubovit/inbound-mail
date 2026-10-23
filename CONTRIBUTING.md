@@ -89,7 +89,7 @@ a production data directory. See [configuration](docs/configuration.md).
 | `mailserver/templates/`, `static/` | Django templates, CSS, and inbox polling JavaScript |
 | `mailserver/cli.py` | Fresh schema initialization, recovery, export, dev/service entry points |
 | `mailserver/wsgi.py` | Production WSGI application |
-| `install.sh`, `deploy/refresh_tls.py` | Native installation, removal, certificate refresh |
+| `install.sh`, `deploy/` | Native installation/removal, certificate refresh, and shared nginx integration |
 | `tests/` | pytest suites and Playwright MCP snippets |
 | `tools/` | Preview fixtures, browser rendering, SMTP checks, release and docs tools |
 
@@ -262,6 +262,10 @@ Review [installation](docs/installation.md) first. In addition to pytest:
   initial admin setup, shared nginx integration, and local/external HTTPS/SMTP.
 - Check service-account file access and owned systemd units with
   `systemd-analyze verify`; confirm unrelated services/configuration remain intact.
+- Exercise shared-site attach/detach, validation rollback, changed-marker refusal,
+  and preservation of unrelated locations and operator edits. The shared-site
+  helper handles explicit simple server blocks; unsupported routing must fail
+  safely rather than widening what the parser assumes it understands.
 - Exercise certificate refresh/renewal on a test lineage; do not repeatedly request
   production certificates just to test a script.
 - Test CLI recovery/export, repeated-install refusal, and confirmed uninstall.

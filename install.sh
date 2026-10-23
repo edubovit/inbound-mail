@@ -10,6 +10,8 @@ SITE=/etc/nginx/sites-available/inbound-mail
 ENABLED=/etc/nginx/sites-enabled/inbound-mail
 SOURCE=
 ACTION=install
+NGINX_MODE=dedicated
+SHARED_SITE=
 
 die() { printf 'Error: %s\n' "$*" >&2; exit 1; }
 ask() {
@@ -57,7 +59,7 @@ check_nginx_config() {
     fi
     printf '%s\n' "$output" >&2
     if grep -Fq 'conflicting server name' <<< "$output"; then
-        printf 'A hostname is duplicated on the same nginx listener. Choose a different hostname or port; existing sites will not be replaced or merged.\n' >&2
+        printf 'A hostname is duplicated on the same nginx listener. Choose a different hostname/port or use shared-site mode for an existing block without a root location.\n' >&2
         return 1
     fi
 }
@@ -91,6 +93,9 @@ uninstall() {
         fi
     fi
     confirm_removal || exit 0
+    if [[ -f "$CONF/nginx-shared.json" ]]; then
+        python3 "$APP/deploy/shared_nginx.py" detach || die 'Shared-site cleanup failed; installation data retained for manual inspection'
+    fi
     systemctl disable --now inbound-mail-renew.timer inbound-mail-web.service inbound-mail-smtp.service 2>/dev/null || true
     systemctl stop inbound-mail-renew.service 2>/dev/null || true
     if [[ -e "$ENABLED" || -L "$ENABLED" ]]; then
@@ -145,7 +150,15 @@ if ! number "$WEB_PORT" 65535 || ! number "$NGINX_PORT" 65535; then die 'Invalid
 ! port_used "$WEB_PORT" || die 'Application port is occupied'
 if port_used "$NGINX_PORT"; then
     ss -H -lntp "sport = :$NGINX_PORT" | grep -q nginx || die 'HTTPS listener is owned by another service; choose an nginx backend port'
-    confirm "Allow the installer to add a mail virtual host to existing nginx port $NGINX_PORT?" || exit 0
+    ask NGINX_MODE 'nginx integration: dedicated (new hostname/server block) or shared (add / to an existing hostname/server block)' dedicated
+    [[ "$NGINX_MODE" == dedicated || "$NGINX_MODE" == shared ]] || die 'Invalid nginx integration mode'
+    if [[ "$NGINX_MODE" == shared ]]; then
+        ask SHARED_SITE 'Absolute path to the active nginx site file containing the UI hostname and TLS listener'
+        [[ "$SHARED_SITE" == /* && -f "$SHARED_SITE" ]] || die 'Shared nginx site file does not exist'
+        confirm "Add an owned include for mail at / in $SHARED_SITE, preserving existing locations and certificates?" || exit 0
+    else
+        confirm "Allow the installer to add a mail virtual host to existing nginx port $NGINX_PORT?" || exit 0
+    fi
 fi
 if [[ "$PUBLIC_PORT" != "$NGINX_PORT" ]]; then
     printf 'The UI URL uses public port %s, but this nginx site will listen on %s. The installer does not connect those ports.\n' "$PUBLIC_PORT" "$NGINX_PORT"
@@ -162,8 +175,11 @@ printf '\nSet these DNS records (DNS-only, not proxied):\n%s. A %s\n%s. MX 10 %s
 printf 'Mailbox addresses will be username@%s. The receiving domain needs no A record unless you also use it as the SMTP or UI hostname.\n' "$DOMAIN"
 printf 'Do not publish AAAA until IPv6 is configured. Allow inbound TCP 25, HTTPS, and TCP 80 for standalone certificate validation. Firewall/provider rules are not changed automatically.\n'
 confirm 'Have you configured the displayed DNS records and allowed the required inbound ports?' || exit 0
-ask CERT_MODE 'TLS: standalone (automatic ACME, TCP 80 must be free) or existing (operator-managed PEM)' standalone
+CERT_DEFAULT=standalone
+[[ "$NGINX_MODE" != shared ]] || CERT_DEFAULT=existing
+ask CERT_MODE 'TLS: standalone (automatic ACME, TCP 80 must be free) or existing (operator-managed PEM)' "$CERT_DEFAULT"
 [[ "$CERT_MODE" == standalone || "$CERT_MODE" == existing ]] || die 'Invalid TLS mode'
+[[ "$NGINX_MODE" != shared || "$CERT_MODE" == existing ]] || die 'Shared-site mode requires existing certificates; nginx TLS remains operator-managed'
 CERT_SOURCE=
 KEY_SOURCE=
 if [[ "$CERT_MODE" == standalone ]]; then
@@ -206,13 +222,17 @@ PY
     [[ -f "$SOURCE/pyproject.toml" && -d "$SOURCE/mailserver" ]] || die 'Invalid release structure'
 fi
 
+if [[ "$NGINX_MODE" == shared ]]; then
+    python3 "$SOURCE/deploy/shared_nginx.py" check --site "$SHARED_SITE" --hostname "$UI_HOST" --port "$NGINX_PORT"
+fi
+
 install -d -m 750 "$CONF"
 touch "$CONF/owned"
 install -d -m 755 "$APP"
 cp -R "$SOURCE/mailserver" "$APP/"
 cp "$SOURCE/pyproject.toml" "$SOURCE/requirements.txt" "$SOURCE/install.sh" "$APP/"
 install -d -m 755 "$APP/deploy"
-cp "$SOURCE/deploy/refresh_tls.py" "$APP/deploy/"
+cp "$SOURCE/deploy/refresh_tls.py" "$SOURCE/deploy/shared_nginx.py" "$APP/deploy/"
 HAD_NGINX=no
 command -v nginx >/dev/null && HAD_NGINX=yes
 apt-get update
@@ -312,6 +332,9 @@ WantedBy=multi-user.target
 UNIT
 done
 
+if [[ "$NGINX_MODE" == shared ]]; then
+    python3 "$APP/deploy/shared_nginx.py" attach --site "$SHARED_SITE" --hostname "$UI_HOST" --port "$NGINX_PORT" --web-port "$WEB_PORT"
+else
 cat > "$SITE" <<NGINX
 server {
     listen $NGINX_PORT ssl;
@@ -341,6 +364,7 @@ ln -s "$SITE" "$ENABLED"
 if ! check_nginx_config; then
     rm "$ENABLED"
     die 'The new nginx site is invalid or conflicts with an existing listener. Its enabled link was removed; nginx was not reloaded. Remove the partial installation before retrying.'
+fi
 fi
 
 if [[ "$CERT_MODE" == standalone ]]; then
