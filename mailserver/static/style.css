@@ -84,7 +84,10 @@ button, .button, input, select { border-radius: 0; }
 .main-nav { display: flex; flex-direction: column; gap: 6px; }
 .main-nav a { display: flex; align-items: center; gap: 12px; min-height: 45px; padding: 12px 10px; font-size: 13px; text-decoration: none; }
 .main-nav [aria-current] { background: var(--sad-raised); }
-.nav-index { color: var(--sad-index); font: 10px/1.5 var(--sad-font-mono); }
+.icon { display: block; width: 100%; height: 100%; }
+.nav-icon { display: block; width: 16px; height: 16px; flex: 0 0 16px; color: var(--sad-index); }
+.mail-icon { display: block; width: 22px; height: 22px; color: var(--sad-muted); }
+.unread .mail-icon { color: var(--sad-text); }
 .rail-context { margin-top: auto; padding: 36px 10px 0; font-size: 12px; }
 .rail-context .eyebrow { font-size: 10px; }
 .identity-address { overflow-wrap: anywhere; font-family: var(--sad-font-mono); }
@@ -106,7 +109,7 @@ p { overflow-wrap: anywhere; }
 .summary-grid .measured { font-size: clamp(28px, 3.1vw, 44px); }
 .entity-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sad-grid-gap); }
 .mail-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
-.mail-list .mail-tile { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; align-items: center; gap: 22px; }
+.mail-list .mail-tile { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; gap: 22px; }
 .mail-content { min-width: 0; }
 .mail-tile .mail-content h2 { font-size: 19px; margin-bottom: 7px; letter-spacing: -.4px; }
 .mail-content .tile-description { margin: 0; }
@@ -243,7 +246,7 @@ footer { border-top: 1px solid var(--sad-rule); padding-top: 22px; display: flex
   .inbox-controls { width: 100%; justify-content: space-between; }
   .entity-grid { grid-template-columns: 1fr; }
   .mail-list .mail-tile { grid-template-columns: 32px minmax(0, 1fr); gap: 14px; padding: 18px; }
-  .mail-list .tile-index { font-size: 22px; align-self: start; }
+  .mail-list .mail-icon { align-self: start; margin-top: 3px; }
   .mail-meta { grid-column: 2; align-items: flex-start; gap: 6px; }
   .mail-meta .read-state { text-align: left; }
   .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 16px; }

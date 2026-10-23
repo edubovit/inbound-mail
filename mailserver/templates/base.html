@@ -4,6 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="dark">
+  <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml" sizes="any">
   <title>{% block title %}{{ title|default:"Inbox" }}{% endblock %} · Inbound</title>
   <link rel="stylesheet" href="/assets/style.css">
   {% block scripts %}{% endblock %}
@@ -19,9 +21,9 @@
       <aside class="index-rail">
         <p class="eyebrow rail-label">WORKSPACE</p>
         <nav class="main-nav" aria-label="Main navigation">
-          <a href="/" {% if request.path == '/' or '/messages/' in request.path %}aria-current="page"{% endif %}><span class="nav-index" aria-hidden="true">01</span>Inbox</a>
-          {% if user.is_staff %}<a href="{% url 'accounts' %}" {% if '/admin/' in request.path %}aria-current="page"{% endif %}><span class="nav-index" aria-hidden="true">02</span>Accounts</a>{% endif %}
-          <a href="{% url 'password' %}" {% if request.path == '/password/' %}aria-current="page"{% endif %}><span class="nav-index" aria-hidden="true">{% if user.is_staff %}03{% else %}02{% endif %}</span>Password</a>
+          <a href="/" {% if request.path == '/' or '/messages/' in request.path %}aria-current="page"{% endif %}><span class="nav-icon">{% include 'icon.html' with name='inbox' only %}</span>Inbox</a>
+          {% if user.is_staff %}<a href="{% url 'accounts' %}" {% if '/admin/' in request.path %}aria-current="page"{% endif %}><span class="nav-icon">{% include 'icon.html' with name='accounts' only %}</span>Accounts</a>{% endif %}
+          <a href="{% url 'password' %}" {% if request.path == '/password/' %}aria-current="page"{% endif %}><span class="nav-icon">{% include 'icon.html' with name='password' only %}</span>Password</a>
         </nav>
         <div class="rail-context">
           <span class="eyebrow">{{ user.role }}</span>

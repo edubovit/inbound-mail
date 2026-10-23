@@ -1,4 +1,6 @@
 import re
+import struct
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import pytest
@@ -18,6 +20,20 @@ def test_login_and_authenticated_shell_are_distinct(client, alice):
     assert b'index-rail' in response.content
     assert b'aria-current="page"' in response.content
     assert b'>Accounts</a>' not in response.content
+
+
+def test_navigation_and_mail_use_decorative_icons_not_counters(client, admin, raw):
+    deliver([admin.address], raw)
+    client.force_login(admin)
+    html = client.get('/').content.decode()
+    nav = re.search(r'<nav class="main-nav".*?</nav>', html, re.S).group()
+    assert nav.count('class="nav-icon"') == 3
+    assert nav.count('aria-hidden="true" focusable="false"') == 3
+    assert not re.search(r'>0[123]<', nav)
+    fragment = client.get('/inbox/updates/').content.decode()
+    assert 'class="mail-icon"' in fragment
+    assert 'class="tile-index"' not in fragment
+    assert '>Unread</span>' in fragment
 
 
 def test_tiles_keep_order_and_destination_when_read_state_changes(client, alice, raw):
@@ -71,6 +87,34 @@ def test_password_gate_allows_only_needed_ui_assets(client, alice):
     assert response.status_code == 200
     response.close()
     assert client.get('/admin/').url == '/password/'
+    for path in ['/favicon.ico', '/assets/favicon.svg']:
+        response = client.get(path)
+        assert response.status_code == 200
+        response.close()
+
+
+def test_favicon_formats_and_content_security(client, alice, raw):
+    login = client.get('/login/')
+    assert b'rel="icon" href="/favicon.ico"' in login.content
+    assert b'rel="icon" href="/assets/favicon.svg"' in login.content
+    assert "img-src 'self'" in login['Content-Security-Policy']
+    response = client.get('/favicon.ico')
+    assert response['Content-Type'] == 'image/x-icon'
+    data = b''.join(response.streaming_content)
+    assert struct.unpack('<HHH', data[:6]) == (0, 1, 3)
+    for index, size in enumerate([16, 32, 48]):
+        width, height, _, _, planes, bits, length, offset = struct.unpack_from('<BBBBHHII', data, 6 + index * 16)
+        assert (width, height, planes, bits) == (size, size, 1, 32)
+        assert data[offset:offset + 8] == b'\x89PNG\r\n\x1a\n'
+        assert offset + length <= len(data)
+    response = client.get('/assets/favicon.svg')
+    assert response['Content-Type'] == 'image/svg+xml'
+    assert ET.fromstring(b''.join(response.streaming_content)).tag.endswith('svg')
+    deliver([alice.address], raw)
+    client.force_login(alice)
+    html = client.get(f'/messages/{alice.mail.get().pk}/html/')
+    assert "img-src" not in html['Content-Security-Policy']
+    assert "default-src 'none'" in html['Content-Security-Policy']
 
 
 def test_permission_and_missing_pages_keep_dark_shell(client, alice):

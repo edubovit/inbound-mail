@@ -151,6 +151,9 @@ stylesheet uses the same palette without permitting email-provided styles. Login
 uses Arial/Helvetica. Keep the mobile rail, tile-wide links, focus outlines, and
 below-collection Create action consistent. There are no monitoring timelines or
 synthetic status measurements in this mail UI. See the [design contract](docs/design.md).
+Navigation and mail rows use decorative outline icons instead of ordinal counters.
+The SVG favicon and ICO fallback share the brand arrow; regenerate the ICO with
+`python tools/build_favicon.py` when changing its geometry or colors.
 
 `static/select.js` progressively enhances single-select fields with a styled
 combobox/listbox. The underlying select still submits the form; without JavaScript

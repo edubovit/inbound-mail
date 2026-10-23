@@ -119,6 +119,9 @@ def check_engine(browser_type):
         page.set_viewport_size({"width": 1440, "height": 1000})
         login(page)
         expect(page.locator("h1")).to_have_text("Inbox")
+        expect(page.locator('.main-nav .nav-icon')).to_have_count(3)
+        expect(page.locator('.main-nav .nav-index, .mail-list .tile-index')).to_have_count(0)
+        assert page.locator('.mail-icon svg[aria-hidden="true"][focusable="false"]').count() > 0
         for width in [1440, 768, 390, 320]:
             page.set_viewport_size({"width": width, "height": 900})
             no_overflow(page)

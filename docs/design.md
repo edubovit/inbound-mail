@@ -15,6 +15,12 @@ than becoming tiles.
   No gradients, glow, decorative movement, or pill-shaped panels.
 - Desktop navigation rail is 184 px. At narrow widths it becomes a horizontal
   navigation area with the same active indicator and scarlet boundary.
+- Navigation uses tray, people and key outline icons. Mail rows use envelopes,
+  not row numbers. Icons are decorative; visible labels and Read/Unread text
+  retain their meaning for keyboard and screen-reader users.
+- A scarlet square with a bone downward arrow identifies the browser tab. SVG is
+  used where supported, with a multi-resolution ICO fallback. Email content still
+  cannot load images or external resources inside its sandbox.
 - Strong page headings, quiet uppercase labels, and monospace identifiers,
   timestamps and indexes. Login uses Arial, Helvetica, sans-serif explicitly.
 - Primary actions are bone with dark text. Scarlet is reserved for identity,

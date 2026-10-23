@@ -299,7 +299,11 @@ def select_script(request):
 
 
 def favicon(request):
-    return HttpResponse(status=204)
+    return FileResponse((settings.BASE_DIR / "static" / "favicon.ico").open("rb"), content_type="image/x-icon")
+
+
+def favicon_svg(request):
+    return FileResponse((settings.BASE_DIR / "static" / "favicon.svg").open("rb"), content_type="image/svg+xml")
 
 
 def health(request):
