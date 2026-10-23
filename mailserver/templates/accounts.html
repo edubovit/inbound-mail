@@ -1,24 +1,25 @@
 {% extends 'base.html' %}
 {% block content %}
-  <div class="heading"><div><p class="eyebrow">ADMINISTRATION</p><h1>Accounts</h1></div><a class="button" href="{% url 'create_account' %}">Create account</a></div>
-  <section class="panel storage-panel">
-    <div class="section-heading"><h2>Storage</h2><a href="{% url 'export' %}">Export all mail <span aria-hidden="true">↗</span></a></div>
-    <div class="storage-stats">
-      <div><span class="stat-label">Disk used:</span><strong>{{ disk.used|filesizeformat }}</strong><small>of {{ disk.total|filesizeformat }}</small></div>
-      <div><span class="stat-label">Free space</span><strong>{{ disk.free|filesizeformat }}</strong><small>on the shared filesystem</small></div>
-      <div><span class="stat-label">Stored mail</span><strong>{{ mail_bytes|filesizeformat }}</strong><small>across all accounts</small></div>
+  <div class="heading"><div><h1>Accounts</h1><p class="page-description">Manage access and mailbox quotas. Addresses stay fixed.</p></div><a class="button secondary" href="{% url 'export' %}">Export all mail</a></div>
+  <section aria-label="Storage">
+    <div class="summary-grid storage-stats">
+      <div><strong>{{ page.paginator.count }}</strong><span>Accounts</span></div>
+      <div><strong class="measured">{{ disk.used|filesizeformat }}</strong><span>Disk used:</span></div>
+      <div><strong class="measured">{{ disk.free|filesizeformat }}</strong><span>Free space</span></div>
+      <div><strong class="measured">{{ mail_bytes|filesizeformat }}</strong><span>Stored mail</span></div>
     </div>
-    <p class="muted storage-note">Free-disk reserve: {{ reserve|filesizeformat }}. Quotas do not reserve disk space.</p>
+    <p class="collection-note">Total disk: {{ disk.total|filesizeformat }}. Free-disk reserve: {{ reserve|filesizeformat }}. Quotas do not reserve disk space.</p>
   </section>
-  <section class="panel table-wrap" aria-label="Accounts">
-    <table><thead><tr><th>Account</th><th>Role</th><th>Mail / quota</th><th>Password</th></tr></thead>
-      <tbody>{% for account in page %}<tr>
-        <td><a href="{% url 'edit_account' account.pk %}">{{ account.address }}</a></td>
-        <td><span class="badge {% if account.is_staff %}badge-accent{% endif %}">{{ account.role }}</span></td>
-        <td>{{ account.used|default:0|filesizeformat }} <span class="muted">/ {{ account.quota_bytes|filesizeformat }}</span></td>
-        <td>{% if account.must_change_password %}<span class="pending">Change required</span>{% else %}<span class="muted">Set</span>{% endif %}</td>
-      </tr>{% endfor %}</tbody>
-    </table>
+  <section class="entity-grid account-grid" aria-label="Accounts">
+    {% for account in page %}
+      <article class="entity-tile account-tile" data-account-id="{{ account.pk }}">
+        <div class="tile-top"><span class="tile-index" aria-hidden="true">{{ page.start_index|add:forloop.counter0|stringformat:'02d' }}</span><span class="badge">{{ account.role }}</span></div>
+        <h2><a class="tile-link" href="{% url 'edit_account' account.pk %}">{{ account.address }}</a></h2>
+        <p class="tile-description">{% if account.must_change_password %}Password change required{% else %}Password set{% endif %}</p>
+        <div class="tile-meta"><span>{{ account.used|default:0|filesizeformat }} / {{ account.quota_bytes|filesizeformat }}</span><span aria-hidden="true">Edit ↗</span></div>
+      </article>
+    {% endfor %}
   </section>
+  <div class="add-row"><a class="button" href="{% url 'create_account' %}"><span aria-hidden="true">+ </span>Create account</a></div>
   {% include 'pagination.html' %}
 {% endblock %}

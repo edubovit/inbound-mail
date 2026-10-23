@@ -1,11 +1,23 @@
 {% extends 'base.html' %}
+{% block scripts %}{% if user.is_authenticated %}<script src="/assets/select.js" defer></script>{% endif %}{% endblock %}
 {% block content %}
-  <section class="panel narrow form-panel">
-    <p class="eyebrow">{% if user.is_authenticated %}MAILBOX SETTINGS{% else %}PRIVATE MAIL{% endif %}</p>
-    <h1>{{ title }}</h1>
-    {% if domain %}<p class="muted form-domain">{{ domain }}</p>{% endif %}
-    {% if notice %}<p class="notice">{{ notice }}</p>{% endif %}
-    <form method="post">{% csrf_token %}{{ form.as_p }}<button type="submit">{{ button }}</button></form>
-    {% block extra %}{% endblock %}
-  </section>
+  {% if not user.is_authenticated %}
+    <div class="login-layout">
+      <section class="login-intro"><p class="eyebrow">INBOUND / PRIVATE MAIL</p><h1>A quiet place<br>for your mail.</h1><p>Receive, read, and keep what matters.<br>No sending. No distractions.</p></section>
+      <section class="login-card" aria-labelledby="form-title"><h2 id="form-title">{{ title }}</h2><p class="form-domain">{{ domain }}</p>
+  {% else %}
+    <div class="heading"><div><p class="eyebrow">{% if '/admin/' in request.path %}ACCOUNT MANAGEMENT{% else %}MAILBOX SETTINGS{% endif %}</p><h1 id="form-title">{{ title }}</h1></div></div>
+    <section class="panel form-panel {% if destructive %}destructive-panel{% endif %}" aria-labelledby="form-title">
+  {% endif %}
+      {% if notice %}<p class="notice">{{ notice }}</p>{% endif %}
+      <form method="post" class="editor-form">
+        {% csrf_token %}
+        {% if form.non_field_errors %}<div role="alert">{{ form.non_field_errors }}</div>{% endif %}
+        <div class="form-fields">{% for field in form %}<div class="field-group {% if field.errors %}has-error{% endif %}">{{ field.as_field_group }}</div>{% endfor %}</div>
+        <div class="form-actions"><button {% if destructive %}class="destructive"{% endif %} type="submit">{{ button }}</button>{% if user.is_authenticated %}<a class="button secondary" href="{{ cancel_url|default:'/' }}">Cancel</a>{% endif %}</div>
+      </form>
+      {% block extra %}{% endblock %}
+      {% if not user.is_authenticated %}<p class="login-note">Use your username or full email address. Accounts are managed by your administrator.</p>{% endif %}
+    </section>
+  {% if not user.is_authenticated %}</div>{% endif %}
 {% endblock %}

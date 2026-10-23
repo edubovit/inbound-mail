@@ -33,7 +33,7 @@ def test_deliveries_appear_without_loading_bodies(client, alice, raw):
     with CaptureQueriesContext(connection) as queries:
         response = client.get("/inbox/updates/")
     assert "Test message — unicode" in response.content.decode()
-    assert b"<strong>1</strong> unread" in response.content
+    assert b"<strong>1</strong><span>Unread</span>" in response.content
     assert b"Plain body" not in response.content
     assert all('"raw"' not in query["sql"] for query in queries)
     assert Message.objects.get().is_read is False
@@ -71,7 +71,7 @@ def test_updates_reflect_read_state_and_deletion(client, alice, raw):
     client.force_login(alice)
     item.is_read = True
     item.save(update_fields=["is_read"])
-    assert b"<strong>0</strong> unread" in client.get("/inbox/updates/").content
+    assert b"<strong>0</strong><span>Unread</span>" in client.get("/inbox/updates/").content
     item.delete()
     assert b"No messages yet" in client.get("/inbox/updates/").content
 
@@ -108,6 +108,7 @@ def test_dark_theme_and_inbox_script_scope(client, alice):
     ("/assets/style.css", "text/css"),
     ("/assets/message.css", "text/css"),
     ("/assets/inbox.js", "text/javascript"),
+    ("/assets/select.js", "text/javascript"),
 ])
 def test_assets_are_available(client, path, content_type):
     response = client.get(path)

@@ -19,7 +19,6 @@ from django.http import (
     FileResponse,
     Http404,
     HttpResponse,
-    HttpResponseForbidden,
     StreamingHttpResponse,
 )
 from django.shortcuts import get_object_or_404, redirect, render
@@ -40,7 +39,7 @@ def admin_required(view):
     @login_required
     def wrapped(request, *args, **kwargs):
         if request.user.role != "ADMIN":
-            return HttpResponseForbidden("Administrator access required.")
+            return render(request, "403.html", status=403)
         return view(request, *args, **kwargs)
     return wrapped
 
@@ -144,7 +143,7 @@ def message(request, pk):
     parsed = mime.parse(item.raw)
     text, truncated = mime.body(parsed, "plain")
     has_html = parsed.get_body(preferencelist=("html",)) is not None
-    return render(request, "message.html", {"item": item, "plain": text, "truncated": truncated, "has_html": has_html, "attachments": mime.attachments(parsed)})
+    return render(request, "message.html", {"title": item.subject or "Message", "item": item, "plain": text, "truncated": truncated, "has_html": has_html, "attachments": mime.attachments(parsed)})
 
 
 @login_required
@@ -193,14 +192,14 @@ def delete_message(request, pk):
     if request.method == "POST" and form.is_valid():
         item.delete()
         return redirect("inbox")
-    return render(request, "form.html", {"title": "Delete message permanently", "notice": item.subject or "(No subject)", "form": form, "button": "Delete permanently"})
+    return render(request, "form.html", {"title": "Delete message permanently", "notice": item.subject or "(No subject)", "form": form, "button": "Delete permanently", "destructive": True, "cancel_url": f"/messages/{pk}/"})
 
 
 @admin_required
 def accounts(request):
     disk = shutil.disk_usage(settings.DATA_DIR)
     rows = Account.objects.annotate(used=Sum("mail__size")).order_by("username")
-    return render(request, "accounts.html", {"page": Paginator(rows, 50).get_page(request.GET.get("page")), "disk": disk, "reserve": settings.DISK_RESERVE_BYTES, "mail_bytes": Message.objects.aggregate(total=Sum("size"))["total"] or 0})
+    return render(request, "accounts.html", {"title": "Accounts", "page": Paginator(rows, 50).get_page(request.GET.get("page")), "disk": disk, "reserve": settings.DISK_RESERVE_BYTES, "mail_bytes": Message.objects.aggregate(total=Sum("size"))["total"] or 0})
 
 
 @admin_required
@@ -216,7 +215,7 @@ def create_account(request):
         else:
             logger.info("Account created by admin id=%d", request.user.id)
             return redirect("accounts")
-    return render(request, "form.html", {"title": "Create account", "form": form, "button": "Create account", "notice": f"Address will be username@{settings.MAIL_DOMAIN}. Password change required at first login."})
+    return render(request, "form.html", {"title": "Create account", "form": form, "button": "Create account", "cancel_url": "/admin/", "notice": f"Address will be username@{settings.MAIL_DOMAIN}. Password change required at first login."})
 
 
 @admin_required
@@ -234,7 +233,7 @@ def edit_account(request, pk):
                 account.quota_bytes = form.cleaned_data["quota_mib"] * 1024**2
                 account.save(update_fields=["role", "quota_bytes"])
                 return redirect("accounts" if request.user.pk != account.pk or account.role == "ADMIN" else "inbox")
-    return render(request, "edit.html", {"title": account.address, "account": account, "form": form, "button": "Save account"})
+    return render(request, "edit.html", {"title": account.address, "account": account, "form": form, "button": "Save account", "cancel_url": "/admin/"})
 
 
 @admin_required
@@ -252,7 +251,7 @@ def reset_password(request, pk):
             account.must_change_password = True
             account.save(update_fields=["password", "must_change_password"])
             return redirect("accounts")
-    return render(request, "form.html", {"title": f"Reset password: {account.username}", "notice": "Existing sessions will be revoked. The user must change this temporary password.", "form": form, "button": "Reset password"})
+    return render(request, "form.html", {"title": f"Reset password: {account.username}", "notice": "Existing sessions will be revoked. The user must change this temporary password.", "form": form, "button": "Reset password", "cancel_url": f"/admin/accounts/{pk}/"})
 
 
 @admin_required
@@ -268,7 +267,7 @@ def delete_account(request, pk):
             else:
                 account.delete()
                 return redirect("accounts")
-    return render(request, "form.html", {"title": f"Delete account: {account.username}", "notice": "All messages will be permanently purged. Incoming mail to this address will be rejected.", "form": form, "button": "Delete account permanently"})
+    return render(request, "form.html", {"title": f"Delete account: {account.username}", "notice": "All messages will be permanently purged. Incoming mail to this address will be rejected.", "form": form, "button": "Delete account permanently", "destructive": True, "cancel_url": f"/admin/accounts/{pk}/"})
 
 
 @admin_required
@@ -280,7 +279,7 @@ def export(request):
         response = StreamingHttpResponse(export_mail(), content_type="application/x-tar")
         response["Content-Disposition"] = 'attachment; filename="mail-export.tar"'
         return response
-    return render(request, "form.html", {"title": "Export all mail", "notice": "Downloads every account's messages, including other users' private mail. New deliveries are excluded; messages deleted during export may be absent. This archive cannot be restored into the application.", "form": form, "button": "Download archive"})
+    return render(request, "form.html", {"title": "Export all mail", "notice": "Downloads every account's messages, including other users' private mail. New deliveries are excluded; messages deleted during export may be absent. This archive cannot be restored into the application.", "form": form, "button": "Download archive", "cancel_url": "/admin/"})
 
 
 def stylesheet(request):
@@ -293,6 +292,10 @@ def message_stylesheet(request):
 
 def inbox_script(request):
     return FileResponse((settings.BASE_DIR / "static" / "inbox.js").open("rb"), content_type="text/javascript")
+
+
+def select_script(request):
+    return FileResponse((settings.BASE_DIR / "static" / "select.js").open("rb"), content_type="text/javascript")
 
 
 def favicon(request):

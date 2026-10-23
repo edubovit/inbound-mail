@@ -12,7 +12,8 @@ async (page) => {
   for (const [username, role] of [['browser-user', 'USER'], ['browser-admin', 'ADMIN']]) {
     await page.getByRole('link', {name: 'Create account', exact: true}).click();
     await page.getByLabel('Username:', {exact: true}).fill(username);
-    await page.getByLabel('Role:', {exact: true}).selectOption(role);
+    await page.getByRole('combobox', {name: 'Role:', exact: true}).click();
+    await page.getByRole('option', {name: role, exact: true}).click();
     await page.getByLabel('Mailbox quota (MiB)').fill('64');
     await page.getByLabel('Temporary password').fill(credentials.user_password);
     await page.getByRole('button', {name: 'Create account', exact: true}).click();

@@ -1,43 +1,40 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="swiss-after-dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="dark">
-  <title>{{ title|default:"Inbox" }} · Inbound</title>
+  <title>{% block title %}{{ title|default:"Inbox" }}{% endblock %} · Inbound</title>
   <link rel="stylesheet" href="/assets/style.css">
   {% block scripts %}{% endblock %}
 </head>
-<body>
+<body class="{% if not user.is_authenticated %}login-page{% endif %}">
   <a class="skip-link" href="#main">Skip to content</a>
   <header class="site-header">
-    <div class="header-inner">
-      <a class="brand" href="/">
-        <span class="brand-mark" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m4 7 8 6 8-6"/></svg>
-        </span>
-        Inbound<span class="brand-dot" aria-hidden="true">.</span>
-      </a>
-      <nav class="main-nav" aria-label="Main navigation">
-        {% if user.is_authenticated %}
-          <a href="/" {% if request.path == '/' or request.resolver_match.url_name == 'message' %}aria-current="page"{% endif %}>Inbox</a>
-          {% if user.is_staff %}<a href="{% url 'accounts' %}" {% if '/admin/' in request.path %}aria-current="page"{% endif %}>Accounts</a>{% endif %}
-          <a href="{% url 'password' %}" {% if request.path == '/password/' %}aria-current="page"{% endif %}>Password</a>
-          <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="link" type="submit">Sign out</button></form>
-        {% else %}<span class="header-note"><span class="status-dot" aria-hidden="true"></span>Receive only</span>{% endif %}
-      </nav>
-    </div>
+    <a class="brand" href="/"><span class="brand-mark" aria-hidden="true">↓</span>Inbound</a>
+    <span class="header-note">PRIVATE MAIL / RECEIVE ONLY</span>
   </header>
-  <main id="main">
+  <div class="app-shell {% if not user.is_authenticated %}guest-shell{% endif %}">
     {% if user.is_authenticated %}
-      <div class="identity">
-        <span class="avatar" aria-hidden="true">{{ user.username|first|upper }}</span>
-        <span class="identity-address">{{ user.address }}</span>
-        <span class="badge">{{ user.role }}</span>
-      </div>
+      <aside class="index-rail">
+        <p class="eyebrow rail-label">WORKSPACE</p>
+        <nav class="main-nav" aria-label="Main navigation">
+          <a href="/" {% if request.path == '/' or '/messages/' in request.path %}aria-current="page"{% endif %}><span class="nav-index" aria-hidden="true">01</span>Inbox</a>
+          {% if user.is_staff %}<a href="{% url 'accounts' %}" {% if '/admin/' in request.path %}aria-current="page"{% endif %}><span class="nav-index" aria-hidden="true">02</span>Accounts</a>{% endif %}
+          <a href="{% url 'password' %}" {% if request.path == '/password/' %}aria-current="page"{% endif %}><span class="nav-index" aria-hidden="true">{% if user.is_staff %}03{% else %}02{% endif %}</span>Password</a>
+        </nav>
+        <div class="rail-context">
+          <span class="eyebrow">{{ user.role }}</span>
+          <p class="identity-address">{{ user.address }}</p>
+          <p class="muted">Private mailbox<br>All times UTC</p>
+          <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="link" type="submit">Sign out <span aria-hidden="true">↗</span></button></form>
+        </div>
+      </aside>
     {% endif %}
-    {% block content %}{% endblock %}
-  </main>
-  <footer><span class="footer-brand">Inbound</span><span>Receive only. No sending. All times UTC.</span></footer>
+    <div class="workspace">
+      <main id="main" tabindex="-1">{% block content %}{% endblock %}</main>
+      <footer><span>Inbound / Receive only</span><span>No sending. All times UTC.</span></footer>
+    </div>
+  </div>
 </body>
 </html>

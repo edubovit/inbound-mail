@@ -11,7 +11,7 @@ async (page) => {
   await page.getByRole('heading', {name: 'Inbox', exact: true}).waitFor();
   await page.locator('#inbox-status[data-state="live"]').waitFor();
   check(await page.locator('.mail-row').count() === 5, 'Unexpected preview fixture');
-  check(await page.evaluate(() => getComputedStyle(document.body).backgroundColor) === 'rgb(11, 16, 23)', 'Inbox is not dark');
+  check(await page.evaluate(() => getComputedStyle(document.body).backgroundColor) === 'rgb(20, 20, 20)', 'Inbox is not charcoal');
   await page.screenshot({path: '.local/dark-inbox-desktop.png', fullPage: true});
   await page.getByRole('link', {name: 'Accounts', exact: true}).click();
   await page.getByRole('heading', {name: 'Accounts', exact: true}).waitFor();
@@ -23,7 +23,7 @@ async (page) => {
   await frame.getByRole('heading', {name: 'Infrastructure review'}).waitFor();
   await page.waitForFunction(() => document.querySelector('iframe').contentWindow !== null);
   const emailFrame = page.frames().find(candidate => candidate.url().includes('/html/'));
-  await emailFrame.waitForFunction(() => getComputedStyle(document.body).backgroundColor === 'rgb(14, 21, 31)');
+  await emailFrame.waitForFunction(() => getComputedStyle(document.body).backgroundColor === 'rgb(25, 25, 25)');
   check(await frame.locator('body script,body img,body style,body [href],body [src]').count() === 0, 'Unsafe email content survived');
   check(await page.evaluate(() => window.hacked) === undefined, 'Email script executed');
   await page.screenshot({path: '.local/dark-message-desktop.png', fullPage: true});

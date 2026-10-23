@@ -1,20 +1,13 @@
 :root { color-scheme: dark; }
-body {
-  margin: 0;
-  padding: 22px;
-  background: #0e151f;
-  color: #e5edf5;
-  font: 15px/1.7 system-ui, sans-serif;
-  overflow-wrap: anywhere;
-}
-h1, h2, h3, h4 { line-height: 1.3; color: #edf4fa; }
-h1 { font-size: 24px; }
-h2 { font-size: 20px; }
-a { color: #77dcc2; }
-blockquote { border-left: 2px solid #46586d; margin: 18px 0; padding-left: 18px; color: #a4b4c6; }
-pre, code { font-family: ui-monospace, monospace; font-size: 13px; white-space: pre-wrap; }
-pre { padding: 16px; background: #192332; border-radius: 6px; }
-table { border-collapse: collapse; max-width: 100%; }
-td, th { border: 1px solid #273344; padding: 8px; }
-hr { border: 0; border-top: 1px solid #273344; }
-::selection { background: #315c57; color: #fff; }
+body { margin: 0; padding: 22px; background: #191919; color: #f1f1eb; font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Arial, sans-serif; overflow-wrap: anywhere; }
+h1, h2, h3, h4 { line-height: 1.2; letter-spacing: -.7px; }
+h1 { font-size: 28px; }
+h2 { font-size: 24px; }
+a { color: #f1f1eb; }
+blockquote { border-left: 3px solid #bc483e; margin: 20px 0; padding-left: 18px; color: #b1b1ad; }
+pre, code { font: 13px/1.6 ui-monospace, Consolas, monospace; white-space: pre-wrap; }
+pre { padding: 16px; background: #1f1f1e; border: 1px solid #454541; }
+table { display: block; overflow: auto; border-collapse: collapse; max-width: 100%; }
+td, th { border: 1px solid #454541; padding: 8px; }
+hr { border: 0; border-top: 1px solid #454541; }
+::selection { background: #40352e; color: #f1f1eb; }

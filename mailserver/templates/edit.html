@@ -1,2 +1,2 @@
 {% extends 'form.html' %}
-{% block extra %}<hr><p>The email address cannot be changed.</p><p><a href="{% url 'reset_password' account.pk %}">Reset password</a></p><p><a class="danger" href="{% url 'delete_account' account.pk %}">Delete account</a></p>{% endblock %}
+{% block extra %}<div class="form-secondary"><p>The email address cannot be changed.</p><div class="actions"><a href="{% url 'reset_password' account.pk %}">Reset password</a><a class="danger" href="{% url 'delete_account' account.pk %}">Delete account</a></div></div>{% endblock %}

@@ -22,6 +22,7 @@ urlpatterns = [
     path("assets/style.css", views.stylesheet),
     path("assets/message.css", views.message_stylesheet),
     path("assets/inbox.js", views.inbox_script),
+    path("assets/select.js", views.select_script),
     path("favicon.ico", views.favicon),
     path("health/", views.health),
 ]

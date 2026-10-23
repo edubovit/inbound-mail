@@ -144,6 +144,21 @@ Templates are rendered on the server; there is no npm build or component framewo
 Static assets are served through explicit views. Package-data patterns in
 `pyproject.toml` must include new assets/templates.
 
+The UI follows Swiss After Dark's Grid Rail design: charcoal and bone surfaces,
+a scarlet-edged index rail, one-email-per-row inbox, two-column account tiles, and square
+bone primary actions. Tokens live in `static/style.css`; the sandboxed message
+stylesheet uses the same palette without permitting email-provided styles. Login
+uses Arial/Helvetica. Keep the mobile rail, tile-wide links, focus outlines, and
+below-collection Create action consistent. There are no monitoring timelines or
+synthetic status measurements in this mail UI. See the [design contract](docs/design.md).
+
+`static/select.js` progressively enhances single-select fields with a styled
+combobox/listbox. The underlying select still submits the form; without JavaScript
+it remains native. Test opening, selection, arrow/Home/End keys, Enter/Space,
+Escape, Tab, type-ahead, outside clicks, reset/change events, dynamic fields, and
+viewport-edge placement. Do not add an unstyled option menu or change authentication
+and CSRF behavior to accommodate controls.
+
 `static/inbox.js` fetches `/inbox/updates/` every 10 seconds without a page reload.
 It preserves the page query, skips unchanged markup, restores focused links,
 pauses while hidden/offline, resumes on return, and retains the inbox on errors.
@@ -159,6 +174,7 @@ python -m pip install ruff
 python -m ruff check mailserver tests tools deploy
 python tools/check_docs.py
 node --check mailserver/static/inbox.js
+node --check mailserver/static/select.js
 git diff --check
 ```
 
@@ -201,6 +217,26 @@ inbox open, run `python -m tools.seed_preview --deliver`, then execute
 `tests/browser-inbox-refresh.js`. These check styling, safe HTML, mobile layout,
 real SMTP arrival without reloading, HTTP-error retry, visibility/offline behavior,
 and session expiry. They are MCP snippets, not a standalone npm test suite.
+
+For the cross-browser UI suite, keep the isolated preview running and install the
+optional browser tooling (not runtime dependencies):
+
+```sh
+python -m pip install playwright==1.63.0
+python -m playwright install chromium firefox webkit
+python tools/check_ui.py
+```
+
+The runner uses only `http://127.0.0.1:8000` and the fixed synthetic preview accounts.
+It creates and deletes test accounts. It checks 1440, 768, 390 and 320 px layouts,
+tile navigation and stable geometry, dropdown keyboard/touch behavior, account
+actions, mail attachments, validation, empty states, and reduced-motion/high-contrast
+behavior. Results/screenshots go to `.local/ui-checks`. Use `--engines chromium`
+for a focused run. All engines must be installed to claim full browser coverage;
+WebKit automation is not a native Safari or physical-device audit.
+Login throttles still apply in the preview. Repeated runs can reach the attempt
+limit; wait for its 15-minute window or start a fresh disposable fixture rather
+than weakening production authentication settings.
 
 For documentation captures, use the same UI with synthetic accounts and mail.
 Capture only the page, not browser chrome or desktop windows. Review images for

@@ -7,7 +7,7 @@ services on **Ubuntu 26.04**; other Ubuntu/Debian systems are best-effort.
 
 ## Features
 
-- Dark web UI with automatic inbox refresh, safe HTML previews, and attachments.
+- Swiss After Dark UI with automatic inbox refresh, safe HTML previews, and attachments.
 - USER and ADMIN accounts, password resets, mailbox quotas, and disk usage.
 - All-mail export as original `.eml` files in a tar archive.
 - Interactive installer with DNS guidance, HTTPS, and first-admin setup.
