@@ -2,6 +2,7 @@
 set -Eeuo pipefail
 umask 077
 
+main() {
 APP=/opt/inbound-mail
 CONF=/etc/inbound-mail
 DATA=/var/lib/inbound-mail
@@ -42,8 +43,8 @@ while (($#)); do
     esac
 done
 
-[[ $EUID -eq 0 ]] || die 'Run as root, for example: sudo bash install.sh'
-[[ -r /dev/tty ]] || die 'An interactive terminal is required'
+[[ $EUID -eq 0 ]] || die 'Run as root: curl -fsSL https://raw.githubusercontent.com/edubovit/inbound-mail/master/install.sh | sudo bash'
+exec </dev/tty || die 'An interactive terminal is required'
 [[ -d /run/systemd/system ]] || die 'A running systemd system is required'
 
 uninstall() {
@@ -149,20 +150,21 @@ if [[ -n "$SOURCE" ]]; then
     SOURCE=$(realpath "$SOURCE")
     [[ -f "$SOURCE/pyproject.toml" && -f "$SOURCE/install.sh" && -d "$SOURCE/mailserver" ]] || die 'Not a source checkout'
 else
-    ask RELEASE_URL 'HTTPS URL of the versioned inbound-mail release .tar.gz'
-    [[ "$RELEASE_URL" == https://* ]] || die 'Release URL must use HTTPS'
-    ask SHA256 'Expected release SHA-256 (from the release checksum file)'
-    [[ "$SHA256" =~ ^[a-fA-F0-9]{64}$ ]] || die 'Invalid SHA-256'
     command -v curl >/dev/null || die 'Install curl first'
-    curl --fail --location --proto '=https' --tlsv1.2 --retry 3 --output "$WORK/release.tar.gz" "$RELEASE_URL"
-    printf '%s  %s\n' "$SHA256" "$WORK/release.tar.gz" | sha256sum --check --status || die 'Release checksum mismatch'
+    curl --fail --silent --show-error --location --proto '=https' --proto-redir '=https' --tlsv1.2 --retry 3 \
+        --output "$WORK/commit.json" https://api.github.com/repos/edubovit/inbound-mail/commits/master
+    REVISION=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["sha"])' "$WORK/commit.json")
+    [[ "$REVISION" =~ ^[a-f0-9]{40}$ ]] || die 'GitHub returned an invalid commit ID'
+    printf 'Downloading inbound-mail source at commit %s\n' "$REVISION"
+    curl --fail --silent --show-error --location --proto '=https' --proto-redir '=https' --tlsv1.2 --retry 3 \
+        --output "$WORK/release.tar.gz" "https://codeload.github.com/edubovit/inbound-mail/tar.gz/$REVISION"
     python3 - "$WORK" <<'PY'
 import pathlib, sys, tarfile
 root = pathlib.Path(sys.argv[1])
 with tarfile.open(root / 'release.tar.gz') as archive:
     archive.extractall(root / 'source', filter='data')
 PY
-    SOURCE="$WORK/source/inbound-mail"
+    SOURCE="$WORK/source/inbound-mail-$REVISION"
     [[ -f "$SOURCE/pyproject.toml" && -d "$SOURCE/mailserver" ]] || die 'Invalid release structure'
 fi
 
@@ -335,3 +337,6 @@ printf 'Verify delivery from outside this VPS. Existing Xray/proxy routing and f
 if [[ "$PUBLIC_PORT" != "$NGINX_PORT" ]]; then printf 'Public HTTPS must already route to nginx port %s; verify externally before using accounts.\n' "$NGINX_PORT"; fi
 if [[ "$CERT_MODE" == existing ]]; then printf 'After certificate renewal, run: python3 /opt/inbound-mail/deploy/refresh_tls.py\n'; fi
 printf 'Uninstall: sudo bash /opt/inbound-mail/install.sh uninstall\n'
+}
+
+main "$@"

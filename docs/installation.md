@@ -20,25 +20,38 @@ supported lifecycle actions.
 
 ## Run the installer
 
-From a trusted source checkout or extracted application archive:
+Run this from an interactive terminal:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/edubovit/inbound-mail/master/install.sh | sudo bash
+```
+
+Already root? Use `bash` instead of `sudo bash`. No clone, archive URL, or checksum
+entry is needed. The script resolves the repository's `master` branch through the
+GitHub API, prints the commit ID, and downloads that exact source archive over
+HTTPS. This installs the branch source, not a tagged release. GitHub API rate
+limits or download failures stop installation before application-owned paths are
+created. Extraction uses Python's data filter.
+
+Piping into Bash grants the downloaded script root access. HTTPS and a pinned
+archive revision are not an independent signature or publisher-trust check.
+To review before execution:
+
+```sh
+curl -fsSL -o install.sh https://raw.githubusercontent.com/edubovit/inbound-mail/master/install.sh
+# Inspect install.sh, then:
+sudo bash install.sh
+```
+
+The complete script is parsed before installation starts. Prompts and child
+processes read from `/dev/tty`, not the incoming script pipe; passwords are entered
+without echo, not through arguments or environment variables.
+
+Developers can still install a trusted checkout or extracted application archive:
 
 ```sh
 sudo bash install.sh --source "$PWD"
 ```
-
-For the one-file download workflow, obtain `install.sh`, the application archive
-URL, and its SHA-256 from a trusted publisher. No release host is built in. The
-following URL is an example, not a working download location:
-
-```sh
-curl --fail --location --proto '=https' -o install.sh https://releases.example.com/install.sh
-```
-
-Inspect the script, then run `sudo bash install.sh`. It prompts for the archive
-URL and checksum, checks the download, and extracts it using Python's data filter.
-A checksum detects altered downloads but does not establish publisher trust.
-Prompts read from the terminal; passwords are entered without echo, not through
-command-line arguments or environment variables.
 
 The script asks for the receiving domain, public HTTPS UI URL, public IPv4,
 loopback web port (default 20025), nginx TLS port, storage limits, DNS readiness,

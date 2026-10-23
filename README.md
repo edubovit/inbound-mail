@@ -20,12 +20,14 @@ everyone's mail. Deletion is permanent; there is no restore or upgrade command.
 Requires root, systemd, Python 3.12+, and inbound TCP 25 and HTTPS access. Automatic
 certificate issuance also needs publicly reachable, unoccupied TCP 80.
 
-From a trusted checkout's root:
+Run from an interactive terminal (curl must be installed):
 
 ```sh
-sudo bash install.sh --source "$PWD"
+curl -fsSL https://raw.githubusercontent.com/edubovit/inbound-mail/master/install.sh | sudo bash
 ```
 
+No clone or manual archive download is needed. This runs repository code as root;
+download and inspect the script first if you need to review it.
 Follow the prompts for your domain, UI URL, ports, limits, TLS, and admin password.
 Configure these DNS records using your own domain and IP, **without HTTP proxying**:
 

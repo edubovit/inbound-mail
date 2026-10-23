@@ -285,8 +285,11 @@ Before publishing, verify version agreement between `pyproject.toml`,
 `mailserver/__init__.py`, and the release filename; run tests and docs checks;
 inspect the actual archive and Git history for private material. Publish only
 intended Git content and release artifacts, never a workspace ZIP containing
-ignored `.local/` data. There is no default remote, release host, or automatic
-publishing step in the tools. Select distribution permissions/license explicitly;
+ignored `.local/` data. The default installer downloads source from the public
+repository's `master` branch, pinned to the commit resolved by the GitHub API.
+It does not consume the built release archive; `--source` accepts a checkout or
+extracted release for controlled testing. There is no automatic publishing step
+in the tools. Select distribution permissions/license explicitly;
 do not imply a license that has not been added.
 
 ## Change checklist
