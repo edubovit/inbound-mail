@@ -49,6 +49,18 @@ valid_domain() {
     done
 }
 number() { [[ "$1" =~ ^[1-9][0-9]{0,6}$ ]] && (( 10#$1 <= $2 )); }
+check_nginx_config() {
+    local output
+    if ! output=$(nginx -t 2>&1); then
+        printf '%s\n' "$output" >&2
+        return 1
+    fi
+    printf '%s\n' "$output" >&2
+    if grep -Fq 'conflicting server name' <<< "$output"; then
+        printf 'A hostname is duplicated on the same nginx listener. Choose a different hostname or port; existing sites will not be replaced or merged.\n' >&2
+        return 1
+    fi
+}
 
 while (($#)); do
     case "$1" in
@@ -112,7 +124,7 @@ command -v python3 >/dev/null || die 'Install Python 3.12+ before running this i
 python3 -c 'import sys; assert sys.version_info >= (3,12)' || die 'Python 3.12+ is required'
 command -v ss >/dev/null || die 'Install iproute2 first'
 ! port_used 25 || die 'TCP 25 is already occupied; existing mail services will not be changed'
-if command -v nginx >/dev/null; then nginx -t || die 'Existing nginx configuration is invalid'; fi
+if command -v nginx >/dev/null; then check_nginx_config || die 'Resolve existing nginx configuration errors or hostname conflicts before installation'; fi
 
 ask DOMAIN 'Receiving domain (ASCII, lowercase)'
 valid_domain "$DOMAIN" || die 'Invalid domain'
@@ -133,8 +145,9 @@ if port_used "$NGINX_PORT"; then
     ss -H -lntp "sport = :$NGINX_PORT" | grep -q nginx || die 'HTTPS listener is owned by another service; choose an nginx backend port'
     confirm "Allow the installer to add a mail virtual host to existing nginx port $NGINX_PORT?" || exit 0
 fi
-if command -v nginx >/dev/null && nginx -T 2>/dev/null | grep -E '^[[:space:]]*server_name ' | grep -Fwq "$UI_HOST"; then
-    die 'The UI hostname is already configured in nginx'
+if [[ "$PUBLIC_PORT" != "$NGINX_PORT" ]]; then
+    printf 'The UI URL uses public port %s, but this nginx site will listen on %s. The installer does not connect those ports.\n' "$PUBLIC_PORT" "$NGINX_PORT"
+    confirm "Have you arranged external routing from $UI_URL to nginx port $NGINX_PORT? Answer no to cancel and use a URL with the intended public port." || exit 0
 fi
 ask MAX_MIB 'Maximum incoming message size (MiB)' 25
 ask QUOTA_MIB 'Default mailbox quota (MiB)' 1024
@@ -320,7 +333,10 @@ server {
 }
 NGINX
 ln -s "$SITE" "$ENABLED"
-if ! nginx -t; then rm "$ENABLED"; die 'nginx rejected the new site; existing running configuration was not reloaded'; fi
+if ! check_nginx_config; then
+    rm "$ENABLED"
+    die 'The new nginx site is invalid or conflicts with an existing listener. Its enabled link was removed; nginx was not reloaded. Remove the partial installation before retrying.'
+fi
 
 if [[ "$CERT_MODE" == standalone ]]; then
     cat > /etc/systemd/system/inbound-mail-renew.service <<UNIT

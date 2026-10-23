@@ -92,6 +92,22 @@ at `/etc/nginx/sites-available/inbound-mail`, enabled by a symlink. An existing
 nginx TLS port can host the new name after confirmation. A port owned by another
 service cannot be taken over. Existing sites are not replaced.
 
+The same hostname may be used on different nginx ports. For direct access at
+`https://inbox.example.com:20002`, specify that full UI URL and nginx port `20002`.
+Without an explicit port, HTTPS uses 443. When the public URL and nginx port differ,
+the installer asks you to confirm that external routing is arranged.
+
+nginx validates the generated site before reload. A duplicate name on the same
+listener is rejected even when nginx reports it only as a warning. The new site's
+enabled link is removed on rejection; the running configuration is not reloaded.
+This validation occurs after app setup, so use the uninstaller to remove the
+partial installation before retrying with a different hostname or port.
+
+The installer does not merge paths into an existing server block. An existing
+site that only serves `/monitoring/` still owns its hostname/listener. Adding mail
+at `/` on that same listener requires deliberate manual integration, not a second
+server block with the same name.
+
 If another TLS router owns public 443, use its nginx backend port and arrange
 routing for the UI hostname separately. The generated site listens on both nginx
 address families. This does not enable IPv6 SMTP reception.

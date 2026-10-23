@@ -133,3 +133,53 @@ uninstall
         assert "Uninstall cancelled" in result.stdout
     if "typo" in answers:
         assert "Invalid answer" in result.stdout
+
+
+@pytest.mark.parametrize("warning,status,accepted", [
+    ("syntax is ok; test is successful", 0, True),
+    ('conflicting server name "inbox.example.com" on 0.0.0.0:20002, ignored', 0, False),
+    ('conflicting server name "inbox.example.com" on [::]:20002, ignored', 0, False),
+    ("unknown directive", 1, False),
+])
+def test_nginx_validation_rejects_ignored_duplicate_names(bash, tmp_path, warning, status, accepted):
+    helper = SCRIPT[SCRIPT.index("check_nginx_config() {"):SCRIPT.index('\nwhile (($#));')]
+    start = SCRIPT.index('if ! check_nginx_config; then')
+    end = SCRIPT.index('\n\nif [[ "$CERT_MODE" == standalone ]]; then', start)
+    block = SCRIPT[start:end]
+    enabled = tmp_path / "enabled-site"
+    enabled.touch()
+    program = f'''set -Eeuo pipefail
+ENABLED='{enabled.as_posix()}'
+nginx() {{ printf '%s\\n' '{warning}' >&2; return {status}; }}
+die() {{ echo "$*" >&2; exit 1; }}
+{helper}
+{block}
+echo ACCEPTED
+'''
+    result = subprocess.run([bash, "-s"], input=program, text=True, capture_output=True, check=False)
+    assert (result.returncode == 0) == accepted, result.stderr
+    assert enabled.exists() == accepted
+    if not accepted:
+        assert "nginx was not reloaded" in result.stderr
+    assert 'grep -Fwq "$UI_HOST"' not in SCRIPT
+
+
+@pytest.mark.parametrize("public,backend,answer,proceeds", [
+    (20002, 20002, "no", True),
+    (443, 20443, "yes", True),
+    (443, 20002, "no", False),
+])
+def test_different_public_port_requires_routing_confirmation(bash, public, backend, answer, proceeds):
+    start = SCRIPT.index('if [[ "$PUBLIC_PORT" != "$NGINX_PORT" ]]; then')
+    end = SCRIPT.index('\nask MAX_MIB', start)
+    program = f'''set -Eeuo pipefail
+PUBLIC_PORT={public}
+NGINX_PORT={backend}
+UI_URL=https://inbox.example.com
+confirm() {{ echo "$1"; test '{answer}' = yes; }}
+{SCRIPT[start:end]}
+echo PROCEED
+'''
+    result = subprocess.run([bash, "-s"], input=program, text=True, capture_output=True, check=True)
+    assert ("PROCEED" in result.stdout) == proceeds
+    assert ("does not connect those ports" in result.stdout) == (public != backend)
