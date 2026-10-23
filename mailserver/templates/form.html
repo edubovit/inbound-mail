@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block content %}
+  <section class="panel narrow form-panel">
+    <p class="eyebrow">{% if user.is_authenticated %}MAILBOX SETTINGS{% else %}PRIVATE MAIL{% endif %}</p>
+    <h1>{{ title }}</h1>
+    {% if domain %}<p class="muted form-domain">{{ domain }}</p>{% endif %}
+    {% if notice %}<p class="notice">{{ notice }}</p>{% endif %}
+    <form method="post">{% csrf_token %}{{ form.as_p }}<button type="submit">{{ button }}</button></form>
+    {% block extra %}{% endblock %}
+  </section>
+{% endblock %}

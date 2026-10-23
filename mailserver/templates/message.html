@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% block content %}
+  <p class="back-link"><a href="/">← Inbox</a></p>
+  <article class="panel message-panel">
+    <div class="message-header">
+      <p class="eyebrow">RECEIVED MESSAGE</p>
+      <h1>{{ item.subject|default:'(No subject)' }}</h1>
+      <dl class="message-meta">
+        <dt>From</dt><dd>{{ item.sender|default:'(No sender)' }}</dd>
+        <dt>Received</dt><dd>{{ item.received_at|date:'Y-m-d H:i:s' }} <span class="muted">· {{ item.size|filesizeformat }}</span></dd>
+      </dl>
+      <div class="actions">
+        <form method="post" action="{% url 'read_state' item.pk %}">
+          {% csrf_token %}
+          {% if item.is_read %}<input type="hidden" name="read" value="no"><button class="secondary" type="submit">Mark unread</button>
+          {% else %}<input type="hidden" name="read" value="yes"><button class="secondary" type="submit">Mark read</button>{% endif %}
+        </form>
+        <a class="danger" href="{% url 'delete_message' item.pk %}">Delete</a>
+      </div>
+    </div>
+    <div class="message-content">
+      {% if plain %}<pre class="body">{{ plain }}</pre>{% elif not has_html %}<p class="muted">No displayable text body.</p>{% endif %}
+      {% if truncated %}<p class="notice">Plain-text preview truncated at 1 MiB.</p>{% endif %}
+      {% if has_html %}
+        <details {% if not plain %}open{% endif %}>
+          <summary>Safe HTML view</summary>
+          <p class="muted">Scripts, styles, images, and active links are removed.</p>
+          <iframe title="Email HTML" sandbox referrerpolicy="no-referrer" src="{% url 'message_html' item.pk %}"></iframe>
+        </details>
+      {% endif %}
+      {% if attachments %}
+        <div class="attachments"><h2>Attachments</h2><p class="muted">Not scanned for malware.</p>
+          <ul>{% for index,name,part in attachments %}<li><a href="{% url 'attachment' item.pk index %}"><span aria-hidden="true">↓</span> {{ name }}</a></li>{% endfor %}</ul>
+        </div>
+      {% endif %}
+    </div>
+  </article>
+{% endblock %}

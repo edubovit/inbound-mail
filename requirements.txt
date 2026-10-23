@@ -1,0 +1,4 @@
+Django==5.2.18
+aiosmtpd==1.4.6
+nh3==0.3.7
+gunicorn==26.2.0; sys_platform != 'win32'

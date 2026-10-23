@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% block content %}
+  <div class="heading"><div><p class="eyebrow">ADMINISTRATION</p><h1>Accounts</h1></div><a class="button" href="{% url 'create_account' %}">Create account</a></div>
+  <section class="panel storage-panel">
+    <div class="section-heading"><h2>Storage</h2><a href="{% url 'export' %}">Export all mail <span aria-hidden="true">↗</span></a></div>
+    <div class="storage-stats">
+      <div><span class="stat-label">Disk used:</span><strong>{{ disk.used|filesizeformat }}</strong><small>of {{ disk.total|filesizeformat }}</small></div>
+      <div><span class="stat-label">Free space</span><strong>{{ disk.free|filesizeformat }}</strong><small>on the shared filesystem</small></div>
+      <div><span class="stat-label">Stored mail</span><strong>{{ mail_bytes|filesizeformat }}</strong><small>across all accounts</small></div>
+    </div>
+    <p class="muted storage-note">Free-disk reserve: {{ reserve|filesizeformat }}. Quotas do not reserve disk space.</p>
+  </section>
+  <section class="panel table-wrap" aria-label="Accounts">
+    <table><thead><tr><th>Account</th><th>Role</th><th>Mail / quota</th><th>Password</th></tr></thead>
+      <tbody>{% for account in page %}<tr>
+        <td><a href="{% url 'edit_account' account.pk %}">{{ account.address }}</a></td>
+        <td><span class="badge {% if account.is_staff %}badge-accent{% endif %}">{{ account.role }}</span></td>
+        <td>{{ account.used|default:0|filesizeformat }} <span class="muted">/ {{ account.quota_bytes|filesizeformat }}</span></td>
+        <td>{% if account.must_change_password %}<span class="pending">Change required</span>{% else %}<span class="muted">Set</span>{% endif %}</td>
+      </tr>{% endfor %}</tbody>
+    </table>
+  </section>
+  {% include 'pagination.html' %}
+{% endblock %}

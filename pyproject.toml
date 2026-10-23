@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "inbound-mail"
+version = "0.1.0"
+requires-python = ">=3.12"
+dynamic = ["dependencies"]
+
+[project.scripts]
+inbound-mail = "mailserver.cli:main"
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+
+[tool.setuptools.packages.find]
+include = ["mailserver*"]
+
+[tool.setuptools.package-data]
+mailserver = ["templates/*.html", "static/*.css", "static/*.js"]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "mailserver.settings"
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "--nomigrations"
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]

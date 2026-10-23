@@ -1,0 +1,23 @@
+<div data-inbox-content data-account="{{ user.pk }}:{{ user.role }}">
+  <div class="mailbox-summary" aria-label="Mailbox summary">
+    <span><strong>{{ page.paginator.count }}</strong> message{{ page.paginator.count|pluralize }}</span>
+    <span class="unread-count"><strong>{{ unread }}</strong> unread</span>
+    <span class="mailbox-storage">{{ used|filesizeformat }} <span class="muted">of {{ user.quota_bytes|filesizeformat }}</span></span>
+  </div>
+  <section class="panel mail-list" aria-label="Messages">
+    {% for item in page %}
+      <a class="mail-row {% if not item.is_read %}unread{% endif %}" href="{% url 'message' item.pk %}">
+        <span class="mail-indicator" aria-hidden="true"></span>
+        <span class="mail-info"><strong>{{ item.subject|default:'(No subject)' }}</strong><small>{{ item.sender|default:'(No sender)' }}</small></span>
+        <span class="meta">{% if not item.is_read %}<span class="unread-label">Unread</span>{% endif %}<time datetime="{{ item.received_at|date:'c' }}">{{ item.received_at|date:'Y-m-d H:i' }}</time><small>{{ item.size|filesizeformat }}</small></span>
+      </a>
+    {% empty %}
+      <div class="empty">
+        <span class="empty-icon" aria-hidden="true">↓</span>
+        <h2>No messages yet</h2>
+        <p>Mail sent to <strong>{{ user.address }}</strong> will appear here.</p>
+      </div>
+    {% endfor %}
+  </section>
+  {% include 'pagination.html' %}
+</div>

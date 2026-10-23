@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block scripts %}<script src="/assets/inbox.js" defer></script>{% endblock %}
+{% block content %}
+  <div class="heading">
+    <div><p class="eyebrow">YOUR MAILBOX</p><h1>Inbox</h1></div>
+    <div class="inbox-controls">
+      <span id="inbox-status" class="sync-status" role="status" aria-live="polite" data-state="idle">Automatic refresh off</span>
+      <a id="inbox-refresh" class="button secondary" href="?page={{ page.number }}">Refresh</a>
+    </div>
+  </div>
+  <noscript><p class="notice">Enable JavaScript for automatic updates, or use Refresh to check for new mail.</p></noscript>
+  <div id="inbox-content" data-updates-url="{% url 'inbox_updates' %}" tabindex="-1">
+    {% include 'inbox_content.html' %}
+  </div>
+{% endblock %}

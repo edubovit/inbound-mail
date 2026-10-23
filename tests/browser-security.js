@@ -1,0 +1,35 @@
+async (page) => {
+  const credentials = __TEST_CREDENTIALS__;
+  const config = __TEST_CONFIG__;
+  const base = config.base_url;
+  const check = (condition, message) => { if (!condition) throw new Error(message); };
+  await page.goto(base + '/login/');
+  await page.getByLabel('Username or email').fill('browser-user');
+  await page.getByLabel('Password:', {exact: true}).fill(credentials.reset_password);
+  await page.getByRole('button', {name: 'Sign in', exact: true}).click();
+  await page.waitForURL('**/password/');
+  await page.getByLabel('Old password:', {exact: true}).fill(credentials.reset_password);
+  await page.getByLabel('New password:', {exact: true}).fill(credentials.changed_password);
+  await page.getByLabel('New password confirmation:', {exact: true}).fill(credentials.changed_password);
+  await page.getByRole('button', {name: 'Change password', exact: true}).click();
+  const csrf = await page.locator('input[name="csrfmiddlewaretoken"]').first().inputValue();
+  check((await page.request.post(base + '/admin/export/', {form: {csrfmiddlewaretoken: csrf, confirm: 'on'}, headers: {Origin: base}})).status() === 403, 'Authorized CSRF bypassed role check');
+  const privatePath = await page.locator('.mail-row').first().getAttribute('href');
+  const cookies = await page.context().cookies(base);
+  const session = cookies.find(cookie => cookie.name === 'sessionid');
+  check(session.secure && session.httpOnly && session.sameSite === 'Strict', 'Session cookie flags');
+  check((await page.request.post(base + '/logout/', {form: {csrfmiddlewaretoken: csrf}, headers: {Origin: 'https://evil.invalid'}})).status() === 403, 'Cross-origin POST allowed');
+  await page.getByRole('button', {name: 'Sign out', exact: true}).click();
+  await page.getByLabel('Username or email').fill(credentials.admin);
+  await page.getByLabel('Password:', {exact: true}).fill(credentials.admin_password);
+  await page.getByRole('button', {name: 'Sign in', exact: true}).click();
+  check((await page.request.get(base + privatePath)).status() === 404, 'Admin can browse another mailbox');
+  check((await page.request.get(base + privatePath + 'html/')).status() === 404, 'Admin can access another HTML body');
+  await page.locator('.mail-row').filter({hasText: 'Maximum size test'}).click();
+  await page.getByText('Plain-text preview truncated at 1 MiB.', {exact: true}).waitFor();
+  check(await page.getByText('Plain-text preview truncated at 1 MiB.', {exact: true}).count() === 1, 'Large message preview is not bounded');
+  await page.getByRole('link', {name: 'Inbox', exact: true}).first().click();
+  await page.screenshot({path: config.artifacts_dir + '/browser-inbox-desktop.png', fullPage: true});
+  await page.getByRole('button', {name: 'Sign out', exact: true}).click();
+  return {passed: ['reset password works', 'role denial with valid CSRF', 'Secure/HttpOnly/SameSite cookies', 'cross-origin POST rejection', 'admin mailbox isolation', '25 MiB message display']};
+}

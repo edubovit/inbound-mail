@@ -1,0 +1,20 @@
+:root { color-scheme: dark; }
+body {
+  margin: 0;
+  padding: 22px;
+  background: #0e151f;
+  color: #e5edf5;
+  font: 15px/1.7 system-ui, sans-serif;
+  overflow-wrap: anywhere;
+}
+h1, h2, h3, h4 { line-height: 1.3; color: #edf4fa; }
+h1 { font-size: 24px; }
+h2 { font-size: 20px; }
+a { color: #77dcc2; }
+blockquote { border-left: 2px solid #46586d; margin: 18px 0; padding-left: 18px; color: #a4b4c6; }
+pre, code { font-family: ui-monospace, monospace; font-size: 13px; white-space: pre-wrap; }
+pre { padding: 16px; background: #192332; border-radius: 6px; }
+table { border-collapse: collapse; max-width: 100%; }
+td, th { border: 1px solid #273344; padding: 8px; }
+hr { border: 0; border-top: 1px solid #273344; }
+::selection { background: #315c57; color: #fff; }
