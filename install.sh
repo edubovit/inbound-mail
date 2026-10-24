@@ -407,4 +407,4 @@ if [[ "$CERT_MODE" == existing ]]; then printf 'After certificate renewal, run: 
 printf 'Uninstall: sudo bash /opt/inbound-mail/install.sh uninstall\n'
 }
 
-main "$@"
+{ main "$@"; exit $?; }

@@ -30,8 +30,25 @@ def test_complete_script_parses_and_pipe_help_does_not_install(bash):
     result = subprocess.run([bash, "-s", "--", "--help"], input=SCRIPT, text=True, capture_output=True, check=True)
     assert "Usage:" in result.stdout
     assert "Prompts always read from /dev/tty" in result.stdout
-    assert SCRIPT.rstrip().endswith('main "$@"')
     assert 'exec </dev/tty' in SCRIPT
+
+
+@pytest.mark.parametrize("status", [0, 7])
+def test_piped_installer_exits_without_reading_redirected_stdin(bash, tmp_path, status):
+    terminal = tmp_path / "terminal-input"
+    terminal.write_text("printf 'UNEXPECTED_COMMAND_EXECUTED\\n'\n", encoding="utf-8")
+    entrypoint = SCRIPT.rsplit("\n}\n", 1)[1]
+    program = '''set -Eeuo pipefail
+main() {
+    exec < "$1"
+    printf 'INSTALLATION_FINISHED\\n'
+    return "$2"
+}
+''' + entrypoint
+    result = subprocess.run([bash, "-s", "--", terminal.as_posix(), str(status)],
+                            input=program, text=True, capture_output=True, timeout=10)
+    assert result.returncode == status, result.stderr
+    assert result.stdout == "INSTALLATION_FINISHED\n"
 
 
 @pytest.mark.parametrize("mode", ["success", "invalid_revision", "failed_download", "wrong_archive"])
