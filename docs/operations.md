@@ -2,6 +2,10 @@
 
 [User guide](../README.md) · [Configuration](configuration.md) · [Security](security.md)
 
+For noninteractive management and account-only credential archives, see
+[account CLI commands](accounts-cli.md). For existing installations, see
+[best-effort upgrades](upgrade.md).
+
 ## Mailboxes and accounts
 
 Sign in with a username or full address. Inbox updates automatically while the
@@ -60,10 +64,11 @@ Admins can reset user passwords in Accounts; existing sessions become invalid.
 To recover an existing ADMIN account from the server:
 
 ```sh
-sudo inbound-mail reset-admin admin
+sudo inbound-mail reset-admin admin --password-file /root/admin-new-password
 ```
 
-Substitute the administrator's username. This command prompts securely and
+Substitute the administrator's username and provide a private password file as
+described in [account automation](accounts-cli.md). This command never prompts and
 requires another password change after login. It does not create an account or
 promote a USER. No recovery emails are sent.
 
@@ -91,9 +96,11 @@ without staging a complete archive on the VPS. It excludes messages newer than
 the export's starting ID cutoff; concurrent deletion can omit messages. Arrange
 a maintenance window without delivery or mailbox changes if consistency is needed.
 
-There is **no import or restore command**. Exports do not contain roles, password
-hashes, read state or application settings; they are not restorable installation
-backups. Automated or remote backups are not configured by the application.
+There is **no mail import or restore command**. Mail exports do not contain roles,
+password hashes, read state or application settings; they are not restorable
+installation backups. [Account archives](accounts-cli.md) separately preserve
+credentials and account settings, but not mail. Automated remote backups are not
+configured by the application.
 
 ## Storage and certificate care
 
@@ -141,7 +148,8 @@ type the exact word `DELETE` at the final prompt to remove owned accounts, mail,
 configuration, services, nginx integration, and certificates. Press Enter or type
 anything else to cancel removal; any export already created is kept.
 Existing external certificates, unrelated services, shared packages, and exports
-are retained. Remove obsolete DNS records yourself. Deletion is not a guarantee
+are retained, as are private upgrade backups under `/var/backups/inbound-mail`.
+Remove obsolete DNS records yourself. Deletion is not a guarantee
 of forensic erasure from storage media or provider snapshots.
 
 In shared-site mode, uninstall removes only the managed include and its snippet,

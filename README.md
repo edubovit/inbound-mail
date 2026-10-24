@@ -10,10 +10,12 @@ services on **Ubuntu 26.04**; other Ubuntu/Debian systems are best-effort.
 - Swiss After Dark UI with automatic inbox refresh, safe HTML previews, and attachments.
 - USER and ADMIN accounts, password resets, mailbox quotas, and disk usage.
 - All-mail export as original `.eml` files in a tar archive.
+- Scriptable account management and account-only credential export/import.
+- Best-effort CLI upgrades without schema migrations.
 - Interactive installer with DNS guidance, HTTPS, and first-admin setup.
 
 No sending, forwarding, IMAP, public signup, search, or folders. Admins can export
-everyone's mail. Deletion is permanent; there is no restore or upgrade command.
+everyone's mail. Deletion is permanent; mail archives cannot be restored by the app.
 
 ## Install
 
@@ -57,6 +59,11 @@ sudo systemctl restart inbound-mail-web inbound-mail-smtp
 Defaults: **25 MiB/message**, **1 GiB/mailbox**, **1 GiB free-disk reserve**.
 Individual quotas are editable in Accounts; changing the default affects new
 accounts only. See the [configuration reference](docs/configuration.md).
+
+Existing installations with the upgrade command can run `sudo inbound-mail upgrade`.
+It refuses incompatible layouts or schemas instead of migrating them. Read the
+[upgrade guide](docs/upgrade.md) before maintenance. For automation, see
+[account CLI commands](docs/accounts-cli.md); passwords come from private files.
 
 [Operations and recovery](docs/operations.md) · [Security and limits](docs/security.md) ·
 [Contributing and development](CONTRIBUTING.md)

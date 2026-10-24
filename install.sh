@@ -68,7 +68,7 @@ while (($#)); do
     case "$1" in
         install|uninstall) ACTION=$1; shift ;;
         --source) [[ $# -ge 2 ]] || die '--source requires a directory'; SOURCE=$2; shift 2 ;;
-        --help) printf 'Usage: sudo bash install.sh [install|uninstall] [--source trusted-checkout]\nPrompts always read from /dev/tty. No upgrades or unattended purge.\n'; exit 0 ;;
+        --help) printf 'Usage: sudo bash install.sh [install|uninstall] [--source trusted-checkout]\nPrompts always read from /dev/tty. Use inbound-mail upgrade for an existing installation. No unattended purge.\n'; exit 0 ;;
         *) die "Unknown argument: $1" ;;
     esac
 done
@@ -122,7 +122,7 @@ if [[ "$ID" != ubuntu || "$VERSION_ID" != 26.04 ]]; then
     confirm "This is $PRETTY_NAME, not the reference Ubuntu 26.04. Attempt installation on this best-effort platform?" || exit 0
 fi
 for path in "$APP" "$CONF" "$DATA" "$SITE" "$ENABLED" /usr/local/bin/inbound-mail /var/log/inbound-mail-acme /etc/systemd/system/inbound-mail-web.service /etc/systemd/system/inbound-mail-smtp.service /etc/systemd/system/inbound-mail-renew.service /etc/systemd/system/inbound-mail-renew.timer; do
-    [[ ! -e "$path" && ! -L "$path" ]] || die "Path already exists: $path. Reinstallation/upgrades are not supported."
+    [[ ! -e "$path" && ! -L "$path" ]] || die "Path already exists: $path. Use inbound-mail upgrade; installation never overwrites an existing instance."
 done
 ! id inbound-mail &>/dev/null || die 'The inbound-mail OS account already exists'
 command -v python3 >/dev/null || die 'Install Python 3.12+ before running this installer'
@@ -233,6 +233,7 @@ cp -R "$SOURCE/mailserver" "$APP/"
 cp "$SOURCE/pyproject.toml" "$SOURCE/requirements.txt" "$SOURCE/install.sh" "$APP/"
 install -d -m 755 "$APP/deploy"
 cp "$SOURCE/deploy/refresh_tls.py" "$SOURCE/deploy/shared_nginx.py" "$APP/deploy/"
+cp "$SOURCE/deploy/upgrade.json" "$APP/deploy/"
 HAD_NGINX=no
 command -v nginx >/dev/null && HAD_NGINX=yes
 apt-get update

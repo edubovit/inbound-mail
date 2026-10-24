@@ -1,9 +1,11 @@
 import argparse
 import asyncio
 import getpass
+import json
 import os
+import subprocess
 import sys
-from contextlib import nullcontext
+from contextlib import contextmanager, nullcontext
 from pathlib import Path
 
 
@@ -18,6 +20,44 @@ def setup():
     django.setup()
 
 
+@contextmanager
+def operation_lock():
+    if not os.environ.get("MAIL_CONFIG"):
+        yield
+        return
+    import fcntl
+    path = Path(os.environ["MAIL_CONFIG"]).parent / "operation.lock"
+    with open(path, "a") as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise ValueError("Another account/upgrade operation is running.") from None
+        yield
+
+
+def account_parser(sub):
+    accounts = sub.add_parser("accounts", help="Noninteractive account management and credential export/import")
+    actions = accounts.add_subparsers(dest="account_command", required=True)
+    actions.add_parser("list", help="List accounts as JSON, without password hashes")
+    actions.add_parser("show").add_argument("username")
+    for action in ("create", "update", "reset-password", "delete"):
+        command = actions.add_parser(action)
+        command.add_argument("username")
+        if action in {"create", "reset-password"}:
+            command.add_argument("--password-file", type=Path, required=True)
+        if action in {"create", "update"}:
+            command.add_argument("--role", choices=["USER", "ADMIN"], default="USER" if action == "create" else None)
+            command.add_argument("--quota-mib", type=int)
+        if action == "delete":
+            command.add_argument("--confirm-delete", action="store_true", required=True,
+                                 help="Permanently delete this account and all its mail")
+        else:
+            command.add_argument("--must-change-password", action=argparse.BooleanOptionalAction,
+                                 default=None if action == "update" else True)
+    actions.add_parser("export", help="Write credentials to a new private JSON file; no mail").add_argument("output", type=Path)
+    actions.add_parser("import", help="Atomically create accounts; refuse collisions and incompatible archives").add_argument("input", type=Path)
+
+
 def initialize(username, password):
     from django.apps import apps
     from django.conf import settings
@@ -28,7 +68,7 @@ def initialize(username, password):
 
     database = Path(settings.DATABASES["default"]["NAME"])
     if database.exists():
-        raise SystemExit("Database already exists. Upgrades and migrations are not supported.")
+        raise SystemExit("Database already exists. Initialization never upgrades or migrates it.")
     user = Account(username=username, role="ADMIN")
     user.set_password(password)
     user.full_clean(exclude=["id"], validate_unique=False)
@@ -49,8 +89,16 @@ def main():
     sub = parser.add_subparsers(dest="command", required=True)
     init = sub.add_parser("init", help="Initialize a fresh installation; never upgrades")
     init.add_argument("username")
-    reset = sub.add_parser("reset-admin", help="Root-only administrator recovery")
+    reset = sub.add_parser("reset-admin", help="Noninteractive root-only administrator recovery")
     reset.add_argument("username")
+    reset.add_argument("--password-file", type=Path, required=True)
+    reset.set_defaults(account_command="reset-password", must_change_password=True)
+    account_parser(sub)
+    upgrade = sub.add_parser("upgrade", help="Best-effort native upgrade; no schema/configuration migrations")
+    target = upgrade.add_mutually_exclusive_group()
+    target.add_argument("--source", type=Path, help="Trusted local source directory instead of GitHub")
+    target.add_argument("--revision", help="Full Git commit ID instead of current master")
+    upgrade.add_argument("--check", action="store_true", help="Prepare/check candidate without installing or stopping services")
     export = sub.add_parser("export", help="Root-only all-mail tar export")
     export.add_argument("output", help="New output file, or - for stdout")
     sub.add_parser("smtp", help="Run the inbound SMTP listener")
@@ -60,36 +108,44 @@ def main():
     args = parser.parse_args()
     if args.config:
         os.environ["MAIL_CONFIG"] = args.config
-    if args.command in {"init", "reset-admin", "export"}:
+    if args.command in {"init", "reset-admin", "export", "accounts", "upgrade"}:
         require_root()
         os.umask(0o077)
+    if args.command == "upgrade":
+        from .upgrade import run
+        try:
+            with operation_lock():
+                run(args)
+        except (OSError, ValueError, subprocess.SubprocessError) as error:
+            raise SystemExit(f"Upgrade failed: {error}") from None
+        return
     setup()
     from django.core.exceptions import ValidationError
     try:
-        if args.command in {"init", "reset-admin"}:
+        if args.command == "accounts":
+            from .accounts import run
+            with operation_lock():
+                print(json.dumps(run(args)))
+        elif args.command == "init":
             password = getpass.getpass("Password: ")
             if password != getpass.getpass("Repeat password: "):
                 raise SystemExit("Passwords do not match.")
-            if args.command == "init":
+            with operation_lock():
                 initialize(args.username, password)
-            else:
-                from django.contrib.auth.password_validation import validate_password
+        elif args.command == "reset-admin":
+            from django.db import transaction
 
-                from .models import Account
-                try:
-                    user = Account.objects.get(username=args.username, role="ADMIN")
-                except Account.DoesNotExist:
-                    raise SystemExit("No administrator with that username exists.") from None
-                validate_password(password, user)
-                user.set_password(password)
-                user.must_change_password = True
-                user.save(update_fields=["password", "must_change_password"])
-                print("Administrator password reset; existing sessions revoked.")
+            from .accounts import find_account, run
+            with operation_lock(), transaction.atomic():
+                if find_account(args.username).role != "ADMIN":
+                    raise ValueError("No administrator with that username exists.")
+                print(json.dumps(run(args)))
         elif args.command == "export":
             from .storage import export_mail
-            with nullcontext(sys.stdout.buffer) if args.output == "-" else open(args.output, "xb") as target:
-                for chunk in export_mail():
-                    target.write(chunk)
+            with operation_lock():
+                with nullcontext(sys.stdout.buffer) if args.output == "-" else open(args.output, "xb") as target:
+                    for chunk in export_mail():
+                        target.write(chunk)
         elif args.command == "smtp":
             from .smtp import serve
             asyncio.run(serve())
@@ -107,6 +163,8 @@ def main():
             call_command("runserver", f"127.0.0.1:{args.port}", use_reloader=False)
     except ValidationError as error:
         raise SystemExit("; ".join(error.messages)) from error
+    except (OSError, ValueError) as error:
+        raise SystemExit(str(error)) from None
 
 
 if __name__ == "__main__":

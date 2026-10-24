@@ -175,3 +175,6 @@ service state, and a local SMTP greeting. It cannot establish public reachabilit
 Failures leave a partial installation for inspection; there is no automatic
 rollback. Use the [uninstaller](operations.md#uninstall) to remove owned resources
 before a fresh attempt. It does not remove installed shared OS packages.
+
+For a complete existing installation, use the [upgrade command](upgrade.md), not
+the installer. Reinstallation does not preserve accounts or mail.

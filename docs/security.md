@@ -10,6 +10,11 @@ accounts and export all stored mail, so users have no mail confidentiality from
 admins or server operators. There is no end-to-end or application-level disk
 encryption. Use host/storage encryption where required.
 
+Root-only account archives contain password hashes and can create privileged
+accounts when imported. They are unencrypted credential material, not mail
+archives. Upgrade rollback directories also contain mail, configuration secrets
+and private keys; retain root-only access and manage their lifetime explicitly.
+
 Accounts have no compose, reply, forward, SMTP submission, IMAP, or POP3 service.
 The SMTP listener accepts only known recipients at the configured domain and
 does not offer AUTH. It has no outbound mail path or delivery queue. Errors are
@@ -20,7 +25,8 @@ returned to the sending SMTP client; Inbound never sends bounces or alerts.
 - Password hashes, server-side authorization, CSRF protection, and database sessions.
 - Production HTTPS enforcement, Secure cookies, HttpOnly session cookies,
   SameSite=Strict sessions, and 12-hour session expiry.
-- Password resets invalidate sessions and require a password change.
+- Password resets invalidate sessions. The UI requires a password change; the
+  scripted CLI defaults to this too but can explicitly provision a final password.
 - Login limits: 10 attempts per username and 30 per source IP in 15 minutes.
 - UI scripts/styles and fetch requests are same-origin under CSP; pages are not
   embeddable by external sites and responses use `Cache-Control: no-store`.
@@ -56,8 +62,8 @@ senders. Configure and monitor the [limits](configuration.md) for your workload.
 SMTP success follows a durable SQLite commit, with recipient/quota checks in the
 same transaction. If the connection fails after commit but before the sender
 receives success, a retry can create a duplicate. There is no deduplication
-guarantee. Database/storage loss still requires operator recovery; exports have
-no application restore path.
+guarantee. Database/storage loss still requires operator recovery; mail exports
+have no application restore path. Account-only imports do not restore messages.
 
 Deletion uses SQLite secure-delete and auto-vacuum settings but cannot erase
 copies in exports, filesystem snapshots, SSD firmware, or provider backups.
