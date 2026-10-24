@@ -124,7 +124,10 @@ Keep list/show output free of hashes. Account archive imports are one transactio
 create-only, same-domain and current-format only. Reject collisions, unknown fields
 and unsupported hashes; do not build legacy adapters. Change the archive format
 identifier when fields/semantics become incompatible. Preserve final-admin checks,
-password validation and session invalidation. Test both real subprocess commands
+nonempty passwords and session invalidation. Password-strength validators are
+disabled; do not reintroduce minimum length or composition rules in individual
+forms or CLI paths. Preserve literal password spaces, old-password verification,
+confirmation and input-size limits. Test both real subprocess commands
 and error paths without production data.
 
 SMTP validates recipients at RCPT and revalidates them at DATA. A DATA handler

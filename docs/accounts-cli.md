@@ -27,6 +27,10 @@ are rejected on Linux. Securely provision these files outside the repository;
 never put real passwords in shell history or logs. Restrict their Windows ACLs
 when testing locally; POSIX mode checks do not apply there.
 
+There are no password-strength checks: short, common, numeric-only and
+username-matching passwords are accepted. Use strong generated passwords anyway.
+File-format restrictions and nonempty passwords are still enforced.
+
 Creation defaults to USER and the configured mailbox quota. Quotas must be
 positive integer MiB values. Usernames use the same fixed-address rules as the UI;
 there is no rename command. Invalid or duplicate accounts fail rather than update.

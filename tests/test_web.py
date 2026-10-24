@@ -160,7 +160,7 @@ def test_password_is_hashed(alice, settings):
 
 def test_invalid_and_duplicate_accounts(client, admin, alice):
     client.force_login(admin)
-    for username, password in [("alice", "Another-passphrase-123!"), ("a..b", "Another-passphrase-123!"), ("weak", "password")]:
+    for username, password in [("alice", "Another-passphrase-123!"), ("a..b", "Another-passphrase-123!"), ("empty", "")]:
         response = client.post("/admin/create/", {"username": username, "role": "USER", "quota_mib": 1024, "password": password})
         assert response.status_code == 200
     assert Account.objects.count() == 2

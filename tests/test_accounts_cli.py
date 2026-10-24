@@ -74,11 +74,11 @@ def test_invalid_operations_do_not_mutate(admin, monkeypatch, capsys, arguments)
     assert list(Account.objects.values()) == before
 
 
-def test_duplicate_and_weak_password_rejected(admin, monkeypatch, capsys, tmp_path):
+def test_duplicate_and_empty_password_rejected(admin, monkeypatch, capsys, tmp_path):
     password = secret_file(tmp_path / "pw", "Another-long-passphrase-123!")
     with pytest.raises(SystemExit):
         invoke(monkeypatch, capsys, "create", "admin", "--password-file", password)
-    secret_file(password, "short")
+    secret_file(password, "")
     with pytest.raises(SystemExit):
         invoke(monkeypatch, capsys, "create", "other", "--password-file", password)
     assert Account.objects.count() == 1

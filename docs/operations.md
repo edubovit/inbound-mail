@@ -27,7 +27,9 @@ can focus the table region and use the arrow keys.
 
 Usernames contain 1–64 lowercase ASCII letters, digits, dots, underscores or
 hyphens. They start/end with a letter or digit and cannot contain consecutive
-dots. Passwords must have at least 12 characters and pass password validation.
+dots. Passwords must be nonempty, but there are no minimum-length, common-password,
+numeric-only, or username-similarity checks. Choose strong passwords despite the
+lack of enforcement. Leading/trailing spaces are preserved, not trimmed.
 Admin-created accounts and reset passwords require a password change on login.
 The final administrator cannot be demoted or deleted through the panel.
 

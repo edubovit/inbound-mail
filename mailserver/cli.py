@@ -62,6 +62,7 @@ def initialize(username, password):
     from django.apps import apps
     from django.conf import settings
     from django.contrib.auth.password_validation import validate_password
+    from django.core.exceptions import ValidationError
     from django.db import connection
 
     from .models import Account
@@ -69,6 +70,8 @@ def initialize(username, password):
     database = Path(settings.DATABASES["default"]["NAME"])
     if database.exists():
         raise SystemExit("Database already exists. Initialization never upgrades or migrates it.")
+    if not password:
+        raise ValidationError("Password must not be empty.")
     user = Account(username=username, role="ADMIN")
     user.set_password(password)
     user.full_clean(exclude=["id"], validate_unique=False)

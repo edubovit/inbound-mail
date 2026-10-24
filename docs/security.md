@@ -32,6 +32,13 @@ returned to the sending SMTP client; Inbound never sends bounces or alerts.
   embeddable by external sites and responses use `Cache-Control: no-store`.
 - HSTS applies to the UI hostname, not all subdomains; preload is not enabled.
 
+Password-strength checks are disabled across web forms, CLI account commands and
+installation. Short, common, entirely numeric, or username-matching passwords are
+accepted, increasing account-takeover risk. Passwords remain required and hashed;
+password changes still check the old password and matching confirmation. Existing
+input-size limits and login throttles remain in place, but are not a substitute
+for strong passwords.
+
 Only a loopback proxy connection may supply a login-rate-limit client IP through
 `X-Real-IP`. The installed nginx site overwrites forwarding headers. Keep the
 application listener private and do not trust arbitrary client proxy headers.

@@ -7,14 +7,14 @@ from .models import Account, username_validator
 
 class LoginForm(forms.Form):
     username = forms.CharField(max_length=320, label="Username or email", widget=forms.TextInput(attrs={"autocomplete": "username", "autofocus": True}))
-    password = forms.CharField(max_length=1024, widget=forms.PasswordInput(attrs={"autocomplete": "current-password"}))
+    password = forms.CharField(max_length=1024, strip=False, widget=forms.PasswordInput(attrs={"autocomplete": "current-password"}))
 
 
 class AccountForm(forms.Form):
     username = forms.CharField(max_length=64, validators=[username_validator])
     role = forms.ChoiceField(choices=Account._meta.get_field("role").choices)
     quota_mib = forms.IntegerField(min_value=1, max_value=1048576, label="Mailbox quota (MiB)")
-    password = forms.CharField(min_length=12, max_length=1024, label="Temporary password", widget=forms.PasswordInput(attrs={"autocomplete": "new-password"}))
+    password = forms.CharField(max_length=1024, strip=False, label="Temporary password", widget=forms.PasswordInput(attrs={"autocomplete": "new-password"}))
 
     def clean_username(self):
         username = self.cleaned_data["username"]
@@ -37,7 +37,7 @@ class EditAccountForm(forms.Form):
 
 
 class ResetForm(forms.Form):
-    password = forms.CharField(min_length=12, max_length=1024, label="Temporary password", widget=forms.PasswordInput(attrs={"autocomplete": "new-password"}))
+    password = forms.CharField(max_length=1024, strip=False, label="Temporary password", widget=forms.PasswordInput(attrs={"autocomplete": "new-password"}))
 
 
 class ConfirmForm(forms.Form):
