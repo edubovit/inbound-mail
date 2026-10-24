@@ -96,7 +96,9 @@ def test_read_html_attachment_and_delete(client, alice, raw):
 
 def test_admin_create_edit_delete_and_export(client, admin, alice, raw):
     client.force_login(admin)
-    assert b"Disk used:" in client.get("/admin/").content
+    html = client.get("/admin/").content
+    for label in ["Accounts", "Disk used", "Free space", "Stored mail"]:
+        assert f"<span>{label}</span>".encode() in html
     response = client.post("/admin/create/", {"username": "new-user", "role": "USER", "quota_mib": 2, "password": "Temporary-passphrase-123!"})
     assert response.status_code == 302
     user = Account.objects.get(username="new-user")

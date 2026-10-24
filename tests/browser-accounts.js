@@ -8,7 +8,7 @@ async (page) => {
   await page.getByLabel('Password:', {exact: true}).fill(credentials.admin_password);
   await page.getByRole('button', {name: 'Sign in', exact: true}).click();
   await page.getByRole('link', {name: 'Accounts', exact: true}).click();
-  check(await page.getByText('Disk used:', {exact: false}).count() > 0, 'Admin disk status absent');
+  check(await page.getByText('Disk used', {exact: true}).count() > 0, 'Admin disk status absent');
   for (const [username, role] of [['browser-user', 'USER'], ['browser-admin', 'ADMIN']]) {
     await page.getByRole('link', {name: 'Create account', exact: true}).click();
     await page.getByLabel('Username:', {exact: true}).fill(username);
