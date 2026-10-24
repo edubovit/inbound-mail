@@ -19,7 +19,11 @@ accounts, resetting passwords, and viewing storage use. Each account is USER or
 ADMIN and has one fixed `username@domain` address. Aliases, catch-all delivery,
 multiple receiving domains, address renaming, and public signup are not supported.
 
-![Account grid with synthetic accounts, roles, and quotas](images/accounts.png)
+Select an address in the account table to edit its role, quota, or password. On
+narrow screens, scroll the table horizontally to see all columns; keyboard users
+can focus the table region and use the arrow keys.
+
+![Account table with synthetic accounts, roles, and quotas](images/accounts.png)
 
 Usernames contain 1–64 lowercase ASCII letters, digits, dots, underscores or
 hyphens. They start/end with a letter or digit and cannot contain consecutive

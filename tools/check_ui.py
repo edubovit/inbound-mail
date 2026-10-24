@@ -29,6 +29,59 @@ def choose(page, value):
     page.get_by_role("option", name=value, exact=True).click()
 
 
+def check_account_table(page, engine):
+    table = page.get_by_role('table', name='Accounts', exact=True)
+    region = page.get_by_role('region', name='Account table', exact=True)
+    expect(table.get_by_role('columnheader')).to_have_text(['Account', 'Role', 'Mail / quota', 'Password'])
+    expect(page.locator('.account-tile, .account-grid')).to_have_count(0)
+    rows = table.locator('tbody .account-row')
+    ids = rows.evaluate_all('rows => rows.map(row => row.dataset.accountId)')
+    assert ids
+    for width in [1440, 768, 390, 320]:
+        page.set_viewport_size({'width': width, 'height': 900})
+        region.evaluate('el => el.scrollLeft = 0')
+        no_overflow(page)
+        expect(table).to_have_css('display', 'table')
+        assert rows.evaluate_all('rows => rows.map(row => row.dataset.accountId)') == ids
+        bounds = region.bounding_box()
+        create = page.get_by_role('link', name='Create account', exact=True)
+        expect(page.locator('.heading').get_by_role('link', name='Create account', exact=True)).to_have_count(1)
+        add = create.bounding_box()
+        assert add['y'] + add['height'] < bounds['y']
+        assert add['x'] >= 0 and add['x'] + add['width'] <= width
+        if width <= 390:
+            assert region.evaluate('el => el.scrollWidth > el.clientWidth')
+            region.press('ArrowRight')
+            expect(region).not_to_have_js_property('scrollLeft', 0)
+            region.evaluate('el => el.scrollLeft = el.scrollWidth')
+            last_column = table.get_by_role('columnheader', name='Password').bounding_box()
+            assert last_column['x'] + last_column['width'] <= bounds['x'] + bounds['width'] + 1
+        page.evaluate('window.scrollTo(0, 0)')
+        page.screenshot(path=str(OUTPUT / f'{engine}-accounts-{width}.png'))
+    page.set_viewport_size({'width': 1440, 'height': 1000})
+    region.evaluate('el => el.scrollLeft = 0')
+    row = rows.first
+    row.scroll_into_view_if_needed()
+    before = row.bounding_box()
+    row.hover()
+    expect(row).to_have_css('background-color', 'rgb(40, 40, 38)')
+    assert row.bounding_box() == before
+    link = row.get_by_role('link')
+    target = link.get_attribute('href')
+    page.mouse.move(0, 0)
+    page.keyboard.press('ArrowRight')
+    link.focus()
+    expect(link).to_be_focused()
+    expect(link).to_have_css('outline-style', 'solid')
+    assert link.evaluate('el => parseFloat(getComputedStyle(el).outlineWidth) >= 1.5')
+    assert row.bounding_box() == before
+    link.press('Enter')
+    page.wait_for_url(BASE + target)
+    expect(page.get_by_role('button', name='Save account', exact=True)).to_be_visible()
+    page.get_by_role('link', name='Cancel', exact=True).click()
+    expect(table).to_be_visible()
+
+
 def check_select(page):
     trigger = page.get_by_role("combobox", name="Role:", exact=True)
     expect(trigger).to_be_visible()
@@ -171,14 +224,7 @@ def check_engine(browser_type):
             page.set_viewport_size({"width": width, "height": 650})
             no_overflow(page)
         page.goto(BASE + '/admin/')
-        for width in [1440, 768, 390, 320]:
-            page.set_viewport_size({"width": width, "height": 900})
-            no_overflow(page)
-            assert page.locator('.account-grid').evaluate("el=>getComputedStyle(el).gridTemplateColumns.split(' ').length") == (1 if width <= 600 else 2)
-            grid = page.locator('.account-grid').bounding_box()
-            add = page.locator('.add-row').bounding_box()
-            assert abs(add['x'] - grid['x']) < 1
-            assert abs(add['y'] - grid['y'] - grid['height'] - 16) < 1
+        check_account_table(page, browser_type.name)
         page.set_viewport_size({"width": 1440, "height": 1000})
         page.get_by_role('link', name='Create account', exact=True).click()
         check_select(page)
@@ -189,6 +235,11 @@ def check_engine(browser_type):
         page.get_by_label('Temporary password').fill('Browser-temporary-581!')
         page.get_by_role('button', name='Create account', exact=True).click()
         expect(page.locator('h1')).to_have_text('Accounts')
+        for width in [1440, 768, 390, 320]:
+            page.set_viewport_size({'width': width, 'height': 900})
+            no_overflow(page)
+            link = page.get_by_role('link', name=username + '@mail.test', exact=True)
+            assert link.evaluate('el => el.parentElement.scrollWidth <= el.parentElement.clientWidth')
         page.get_by_role('link', name=username + '@mail.test', exact=True).click()
         expect(page.get_by_role('combobox', name='Role:', exact=True)).to_have_text('ADMIN')
         for width in [1440, 768, 390, 320]:
@@ -232,6 +283,11 @@ def check_engine(browser_type):
         page.emulate_media(forced_colors='none')
         with browser.new_context(storage_state=context.storage_state(), java_script_enabled=False) as fallback:
             tab = fallback.new_page()
+            tab.goto(BASE + '/admin/')
+            account_link = tab.get_by_role('table', name='Accounts', exact=True).get_by_role('link').first
+            account_path = account_link.get_attribute('href')
+            account_link.click()
+            tab.wait_for_url(BASE + account_path)
             tab.goto(BASE + '/admin/create/')
             native = tab.get_by_label('Role:', exact=True)
             expect(native).to_be_visible()
@@ -249,7 +305,7 @@ def check_engine(browser_type):
         assert page.request.get(BASE + '/admin/').status == 403
         assert not errors, errors
         state = context.storage_state()
-        result['checks'] = ['four viewport sizes', 'Arial login', 'grid and rail', 'stable hover/read geometry', 'whole tile and keyboard navigation', 'safe HTML', 'attachments', 'custom dropdown interactions and dynamic fields', 'create/edit/reset/export/delete', 'validation persistence', 'empty USER inbox', 'reduced motion', 'forced colors']
+        result['checks'] = ['four viewport sizes', 'Arial login', 'account table and rail', 'table horizontal keyboard scrolling', 'stable hover/read geometry', 'mail-row and account-link keyboard navigation', 'safe HTML', 'attachments', 'custom dropdown interactions and dynamic fields', 'create/edit/reset/export/delete', 'validation persistence', 'empty USER inbox', 'reduced motion', 'forced colors']
         with browser.new_context(storage_state=state, java_script_enabled=False) as plain:
             tab = plain.new_page()
             tab.goto(BASE)
@@ -265,6 +321,11 @@ def check_engine(browser_type):
             rect = tile.bounding_box()
             tab.touchscreen.tap(rect['x']+rect['width']-10, rect['y']+rect['height']-10)
             tab.wait_for_url(BASE + target)
+            tab.goto(BASE + '/admin/')
+            account_link = tab.get_by_role('table', name='Accounts', exact=True).get_by_role('link').first
+            account_path = account_link.get_attribute('href')
+            account_link.tap()
+            tab.wait_for_url(BASE + account_path)
             tab.goto(BASE + '/admin/create/')
             tab.get_by_role('combobox',name='Role:',exact=True).tap()
             tab.get_by_role('option',name='ADMIN',exact=True).tap()

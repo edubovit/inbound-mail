@@ -163,11 +163,12 @@ Static assets are served through explicit views. Package-data patterns in
 `pyproject.toml` must include new assets/templates.
 
 The UI follows Swiss After Dark's Grid Rail design: charcoal and bone surfaces,
-a scarlet-edged index rail, one-email-per-row inbox, two-column account tiles, and square
+a scarlet-edged index rail, one-email-per-row inbox, compact account table, and square
 bone primary actions. Tokens live in `static/style.css`; the sandboxed message
 stylesheet uses the same palette without permitting email-provided styles. Login
-uses Arial/Helvetica. Keep the mobile rail, tile-wide links, focus outlines, and
-below-collection Create action consistent. There are no monitoring timelines or
+uses Arial/Helvetica. Keep the mobile rail, whole-mail-row links, account-address
+edit links, table headers/horizontal keyboard scrolling, focus outlines, and
+the header's Create/Export actions consistent. There are no monitoring timelines or
 synthetic status measurements in this mail UI. See the [design contract](docs/design.md).
 Navigation and mail rows use decorative outline icons instead of ordinal counters.
 The SVG favicon and ICO fallback share the brand arrow; regenerate the ICO with
@@ -250,7 +251,7 @@ python tools/check_ui.py
 
 The runner uses only `http://127.0.0.1:8000` and the fixed synthetic preview accounts.
 It creates and deletes test accounts. It checks 1440, 768, 390 and 320 px layouts,
-tile navigation and stable geometry, dropdown keyboard/touch behavior, account
+mail-row navigation, account-table links/scrolling and stable geometry, dropdown keyboard/touch behavior, account
 actions, mail attachments, validation, empty states, and reduced-motion/high-contrast
 behavior. Results/screenshots go to `.local/ui-checks`. Use `--engines chromium`
 for a focused run. All engines must be installed to claim full browser coverage;

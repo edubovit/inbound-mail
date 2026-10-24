@@ -1,6 +1,12 @@
 {% extends 'base.html' %}
 {% block content %}
-  <div class="heading"><div><h1>Accounts</h1><p class="page-description">Manage access and mailbox quotas. Addresses stay fixed.</p></div><a class="button secondary" href="{% url 'export' %}">Export all mail</a></div>
+  <div class="heading">
+    <div><h1>Accounts</h1><p class="page-description">Select an address to manage its role, quota, or password. Addresses stay fixed.</p></div>
+    <div class="actions account-actions">
+      <a class="button" href="{% url 'create_account' %}">Create account</a>
+      <a class="button secondary" href="{% url 'export' %}">Export all mail</a>
+    </div>
+  </div>
   <section aria-label="Storage">
     <div class="summary-grid storage-stats">
       <div><strong>{{ page.paginator.count }}</strong><span>Accounts</span></div>
@@ -10,16 +16,22 @@
     </div>
     <p class="collection-note">Total disk: {{ disk.total|filesizeformat }}. Free-disk reserve: {{ reserve|filesizeformat }}. Quotas do not reserve disk space.</p>
   </section>
-  <section class="entity-grid account-grid" aria-label="Accounts">
-    {% for account in page %}
-      <article class="entity-tile account-tile" data-account-id="{{ account.pk }}">
-        <div class="tile-top"><span class="tile-index" aria-hidden="true">{{ page.start_index|add:forloop.counter0|stringformat:'02d' }}</span><span class="badge">{{ account.role }}</span></div>
-        <h2><a class="tile-link" href="{% url 'edit_account' account.pk %}">{{ account.address }}</a></h2>
-        <p class="tile-description">{% if account.must_change_password %}Password change required{% else %}Password set{% endif %}</p>
-        <div class="tile-meta"><span>{{ account.used|default:0|filesizeformat }} / {{ account.quota_bytes|filesizeformat }}</span><span aria-hidden="true">Edit ↗</span></div>
-      </article>
-    {% endfor %}
-  </section>
-  <div class="add-row"><a class="button" href="{% url 'create_account' %}"><span aria-hidden="true">+ </span>Create account</a></div>
+  <div class="table-scroll" role="region" aria-label="Account table" tabindex="0">
+    <table class="account-table" aria-label="Accounts">
+      <thead><tr><th scope="col">Account</th><th scope="col">Role</th><th scope="col">Mail / quota</th><th scope="col">Password</th></tr></thead>
+      <tbody>
+        {% for account in page %}
+          <tr class="account-row" data-account-id="{{ account.pk }}">
+            <th scope="row" class="account-address"><a href="{% url 'edit_account' account.pk %}">{{ account.address }}</a></th>
+            <td><span class="badge">{{ account.role }}</span></td>
+            <td class="account-usage">{{ account.used|default:0|filesizeformat }} <span class="muted">/ {{ account.quota_bytes|filesizeformat }}</span></td>
+            <td class="account-password">{% if account.must_change_password %}Change required{% else %}<span class="muted">Set</span>{% endif %}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4" class="muted">No accounts.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
   {% include 'pagination.html' %}
 {% endblock %}

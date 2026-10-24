@@ -3,9 +3,10 @@
 [User guide](../README.md) · [Development](../CONTRIBUTING.md)
 
 Inbound uses the Grid Rail composition with a **list inbox: one email per row**.
-Account management uses a two-column grid, collapsing to one column on narrow
-screens. Reading pages and forms remain full-width within the workspace rather
-than becoming tiles.
+Account management uses a compact table with Account, Role, Mail / quota, and
+Password columns. On narrow screens, only the table scrolls horizontally; it does
+not turn into cards or widen the page. Reading pages and forms remain full-width
+within the workspace rather than becoming tiles.
 
 ## Visual contract
 
@@ -25,8 +26,9 @@ than becoming tiles.
   timestamps and indexes. Login uses Arial, Helvetica, sans-serif explicitly.
 - Primary actions are bone with dark text. Scarlet is reserved for identity,
   accents and errors, not every action or unread message.
-- Create account sits below the account collection with a 16 px gap. Destructive
-  actions are separated and retain their confirmation step.
+- Create account is the primary header action beside Export all mail, above the
+  table and storage summary. Actions wrap on narrow screens. Destructive actions
+  are separated and retain their confirmation step.
 
 The exact token definitions are in `mailserver/static/style.css`. Safe HTML email
 uses `message.css` inside its sandbox; email-provided styling remains blocked.
@@ -35,11 +37,19 @@ uses `message.css` inside its sandbox; email-provided styling remains blocked.
 
 ## Interaction contract
 
-Mail rows and account tiles expose real links across the non-interactive surface.
-Hover lightens the full entity without lifting it, underlining its title, or
+Mail rows expose real links across the non-interactive surface.
+Hover lightens the full mail row without lifting it, underlining its title, or
 changing geometry. Keyboard focus adds a 2 px `#dfc3b8` outline. Modified clicks
 retain normal browser navigation. Read state never reorders mail; incoming mail
 still appears in received order. Read/unread styling does not change row height.
+
+Accounts use semantic column and row headers. The address link opens the account
+editor; other cells remain ordinary selectable table content, not hidden click
+targets. Hover and link focus lighten the row without changing its geometry.
+Links retain underlines and a visible keyboard outline. The labeled scroll region
+is keyboard-focusable, so arrow keys can reveal all columns on narrow screens.
+Account order, pagination, quotas, password-change status, and management actions
+are unchanged by the table layout.
 
 Pointer hover is limited to hover-capable devices. Only background/border colors
 transition; reduced motion disables transitions. High-contrast mode keeps visible
@@ -59,7 +69,7 @@ application has no monitoring timelines or availability charts.
 ## Verification
 
 Use the isolated fixture and browser commands in [CONTRIBUTING.md](../CONTRIBUTING.md).
-Check login, list, account grid, editors, error confirmations, email content and
+Check login, list, account table, editors, error confirmations, email content and
 attachments at 1440, 768, 390 and 320 px. Include long addresses/subjects, empty
 mailboxes, network failure and session expiry. Test both dropdown creation and
 editing, as well as the native no-JavaScript fallback.

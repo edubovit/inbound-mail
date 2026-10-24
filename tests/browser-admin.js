@@ -14,7 +14,7 @@ async (page) => {
   await page.getByRole('option', {name: 'ADMIN', exact: true}).click();
   await page.getByLabel('Mailbox quota (MiB)').fill('128');
   await page.getByRole('button', {name: 'Save account', exact: true}).click();
-  const row = page.locator('.account-tile').filter({hasText: 'browser-user@' + config.mail_domain});
+  const row = page.locator('.account-row').filter({hasText: 'browser-user@' + config.mail_domain});
   check((await row.innerText()).includes('ADMIN'), 'Role edit failed');
   check((await row.innerText()).includes('128'), 'Quota edit failed');
   await page.getByRole('link', {name: 'browser-user@' + config.mail_domain, exact: true}).click();
@@ -32,7 +32,7 @@ async (page) => {
   await page.getByRole('link', {name: 'Reset password', exact: true}).click();
   await page.getByLabel('Temporary password').fill(credentials.reset_password);
   await page.getByRole('button', {name: 'Reset password', exact: true}).click();
-  check((await page.locator('.account-tile').filter({hasText: 'browser-user@' + config.mail_domain}).innerText()).includes('Password change required'), 'Reset not required');
+  check((await page.locator('.account-row').filter({hasText: 'browser-user@' + config.mail_domain}).innerText()).includes('Change required'), 'Reset not required');
   await page.getByRole('link', {name: 'browser-admin@' + config.mail_domain, exact: true}).click();
   await page.getByRole('link', {name: 'Delete account', exact: true}).click();
   await page.getByLabel('I understand and confirm').check();

@@ -53,10 +53,46 @@ def test_tiles_keep_order_and_destination_when_read_state_changes(client, alice,
     assert b'entity-grid mail-list' not in after
 
 
-def test_add_account_action_is_after_collection(client, admin):
+def test_create_account_action_is_in_heading_before_table(client, admin):
     client.force_login(admin)
     html = client.get('/admin/').content
-    assert html.index(b'class="add-row"') > html.index(b'</section>', html.index(b'class="entity-grid account-grid"'))
+    assert html.index(b'class="actions account-actions"') < html.index(b'class="summary-grid') < html.index(b'<table')
+    assert html.count(b'href="/admin/create/"') == 1
+    assert html.index(b'href="/admin/create/"') < html.index(b'href="/admin/export/"')
+
+
+def test_account_table_preserves_fields_and_edit_links(client, admin, alice, raw):
+    alice.must_change_password = True
+    alice.quota_bytes = 100 * 1024**2
+    alice.save()
+    deliver([alice.address], raw)
+    client.force_login(admin)
+    response = client.get('/admin/')
+    html = response.content.decode()
+    assert '<table class="account-table" aria-label="Accounts">' in html
+    assert 'role="region" aria-label="Account table" tabindex="0"' in html
+    assert re.findall(r'<th scope="col">(.*?)</th>', html) == ['Account', 'Role', 'Mail / quota', 'Password']
+    assert 'account-tile' not in html and 'tile-index' not in html
+    rows = re.findall(r'<tr class="account-row" data-account-id="(\d+)">(.*?)</tr>', html, re.S)
+    assert [int(pk) for pk, _ in rows] == [admin.pk, alice.pk]
+    assert f'<th scope="row" class="account-address"><a href="/admin/accounts/{alice.pk}/">{alice.address}</a></th>' in rows[1][1]
+    assert 'USER' in rows[1][1] and 'Change required' in rows[1][1] and '100.0\xa0MB' in rows[1][1]
+    assert 'ADMIN' in rows[0][1] and '>Set</span>' in rows[0][1]
+    assert response.context['page'][1].used == len(raw)
+    assert admin.password not in html and alice.password not in html
+
+
+def test_account_table_pagination_keeps_all_accounts(client, admin):
+    Account.objects.bulk_create([Account(username=f'{number:02d}') for number in range(1, 55)])
+    client.force_login(admin)
+    seen = []
+    for number, count in [(1, 50), (2, 5)]:
+        response = client.get('/admin/', {'page': number})
+        ids = re.findall(rb'<tr class="account-row" data-account-id="(\d+)">', response.content)
+        assert len(ids) == count
+        seen.extend(int(pk) for pk in ids)
+        assert b'Create account' in response.content and b'Export all mail' in response.content
+    assert seen == list(Account.objects.order_by('username').values_list('pk', flat=True))
 
 
 def test_forms_keep_native_select_fallback_and_cancel(client, admin):
