@@ -65,12 +65,14 @@ def test_read_html_attachment_and_delete(client, alice, raw):
     client.force_login(alice)
     response = client.get(reverse("message", args=[item.id]))
     assert b"&lt;script&gt;not markup&lt;/script&gt;" in response.content
+    assert b"<iframe" not in response.content
+    response = client.post(reverse("message", args=[item.id]), {"view": "full"})
     assert b"sandbox" in response.content
     response = client.get(reverse("message_html", args=[item.id]))
-    for forbidden in [b"<script", b"<img", b"<form", b"tracker.invalid", b"<style"]:
-        assert forbidden not in response.content
-    assert response.content.count(b"href=") == 1
-    assert b'href="/assets/message.css"' in response.content
+    for preserved in [b"<script", b"<img", b"<form", b"tracker.invalid", b"<style"]:
+        assert preserved in response.content
+    assert b'target="_blank"' in response.content
+    assert response["Referrer-Policy"] == "no-referrer"
     assert "sandbox" in response["Content-Security-Policy"]
     assert "script-src" not in response["Content-Security-Policy"]
     assert "default-src 'none'" in response["Content-Security-Policy"]

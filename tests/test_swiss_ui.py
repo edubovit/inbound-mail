@@ -149,7 +149,8 @@ def test_favicon_formats_and_content_security(client, alice, raw):
     deliver([alice.address], raw)
     client.force_login(alice)
     html = client.get(f'/messages/{alice.mail.get().pk}/html/')
-    assert "img-src" not in html['Content-Security-Policy']
+    assert "img-src https: http: data:" in html['Content-Security-Policy']
+    assert "allow-scripts" not in html['Content-Security-Policy']
     assert "default-src 'none'" in html['Content-Security-Policy']
 
 

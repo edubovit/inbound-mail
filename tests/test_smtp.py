@@ -1,3 +1,4 @@
+import asyncio
 import smtplib
 import socket
 from unittest.mock import patch
@@ -24,8 +25,16 @@ def smtp_server():
 
     controller = Server(Handler(), hostname="127.0.0.1", port=port)
     controller.start()
-    yield port
-    controller.stop()
+
+    async def wait_for_startup_probe():
+        while controller.handler.connections:
+            await asyncio.sleep(0.01)
+
+    try:
+        asyncio.run_coroutine_threadsafe(wait_for_startup_probe(), controller.loop).result(timeout=5)
+        yield port
+    finally:
+        controller.stop()
 
 
 def test_real_smtp_delivery(smtp_server, alice, raw):

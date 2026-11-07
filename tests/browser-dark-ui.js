@@ -18,13 +18,15 @@ async (page) => {
   await page.screenshot({path: '.local/dark-accounts.png', fullPage: true});
   await page.getByRole('link', {name: 'Inbox', exact: true}).click();
   await page.locator('.mail-row').filter({hasText: 'Notes from the infrastructure review'}).click();
-  await page.getByText('Safe HTML view', {exact: true}).click();
+  check(await page.locator('iframe').count() === 0, 'HTML loaded before consent');
+  await page.route('https://tracker.invalid/**', route => route.fulfill({status: 204}));
+  await page.getByRole('button', {name: 'Show full view', exact: true}).click();
   const frame = page.frameLocator('iframe[title="Email HTML"]');
   await frame.getByRole('heading', {name: 'Infrastructure review'}).waitFor();
   await page.waitForFunction(() => document.querySelector('iframe').contentWindow !== null);
   const emailFrame = page.frames().find(candidate => candidate.url().includes('/html/'));
-  await emailFrame.waitForFunction(() => getComputedStyle(document.body).backgroundColor === 'rgb(25, 25, 25)');
-  check(await frame.locator('body script,body img,body style,body [href],body [src]').count() === 0, 'Unsafe email content survived');
+  check(await frame.locator('img').count() === 1, 'Email image removed');
+  check(await emailFrame.evaluate(() => { try { return parent.document.title; } catch { return 'isolated'; } }) === 'isolated', 'Email frame is not isolated');
   check(await page.evaluate(() => window.hacked) === undefined, 'Email script executed');
   await page.screenshot({path: '.local/dark-message-desktop.png', fullPage: true});
   await page.setViewportSize({width: 390, height: 844});
@@ -36,5 +38,5 @@ async (page) => {
   await page.screenshot({path: '.local/dark-inbox-mobile.png', fullPage: true});
   await page.setViewportSize({width: 1280, height: 900});
   await page.evaluate(() => { window.__inboxVisit = 'initial-render'; });
-  return {passed: ['dark login', 'dark inbox', 'dark accounts', 'dark isolated HTML', 'email sanitization', 'desktop/mobile layout'], readyForDelivery: true};
+  return {passed: ['dark login', 'dark inbox', 'dark accounts', 'opt-in full HTML', 'email isolation', 'desktop/mobile layout'], readyForDelivery: true};
 }

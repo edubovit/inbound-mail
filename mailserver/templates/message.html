@@ -19,14 +19,20 @@
       </div>
     </div>
     <div class="message-content">
-      {% if plain %}<pre class="body">{{ plain }}</pre>{% elif not has_html %}<p class="muted">No displayable text body.</p>{% endif %}
-      {% if truncated %}<p class="notice">Plain-text preview truncated at 1 MiB.</p>{% endif %}
-      {% if has_html %}
-        <details {% if not plain %}open{% endif %}>
-          <summary>Safe HTML view</summary>
-          <p class="muted">Scripts, styles, images, and active links are removed.</p>
-          <iframe title="Email HTML" sandbox referrerpolicy="no-referrer" src="{% url 'message_html' item.pk %}"></iframe>
-        </details>
+      {% if has_html and full %}
+        <p class="notice">Full view loads external content, which may track you. Links open in a new tab. Scripts and forms are blocked.</p>
+        <p><a class="button secondary" href="{% url 'message' item.pk %}">Show plain text</a></p>
+        <iframe title="Email HTML" sandbox="allow-popups allow-popups-to-escape-sandbox" referrerpolicy="no-referrer" src="{% url 'message_html' item.pk %}"></iframe>
+      {% else %}
+        {% if has_html %}
+          <form method="post">
+            {% csrf_token %}
+            <p class="notice">Full view shows formatting, links and images. External content can reveal your IP address and confirm that you opened this email.</p>
+            <p><button class="secondary" name="view" value="full" type="submit">Show full view</button></p>
+          </form>
+        {% endif %}
+        {% if html_source %}<p class="notice">This email has no plain-text part. Its HTML source is shown as text.</p>{% endif %}
+        {% if plain %}<pre class="body">{{ plain }}</pre>{% else %}<p class="muted">No displayable text body.</p>{% endif %}
       {% endif %}
       {% if attachments %}
         <div class="attachments"><h2>Attachments</h2><p class="muted">Not scanned for malware.</p>

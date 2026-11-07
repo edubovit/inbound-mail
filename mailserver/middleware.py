@@ -12,5 +12,5 @@ class SecurityMiddleware:
             response = self.get_response(request)
         response.setdefault("Content-Security-Policy", "default-src 'none'; img-src 'self'; script-src 'self'; connect-src 'self'; style-src 'self'; frame-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'")
         response["Cache-Control"] = "no-store"
-        response["Referrer-Policy"] = "same-origin"
+        response.setdefault("Referrer-Policy", "same-origin")
         return response

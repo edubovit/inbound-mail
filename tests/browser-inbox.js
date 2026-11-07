@@ -28,11 +28,14 @@ async (page) => {
   check(await page.getByText('Browser plain text body', {exact: false}).count() > 0, 'Missing plain body');
   await page.getByRole('button', {name: 'Mark read', exact: true}).click();
   check(await page.getByRole('button', {name: 'Mark unread', exact: true}).count() === 1, 'Read state not persisted');
-  await page.getByText('Safe HTML view', {exact: true}).click();
+  check(unexpected.length === 0, 'Remote content loaded before consent');
+  check(await page.locator('iframe').count() === 0, 'HTML loaded before consent');
+  await page.route('https://tracker.invalid/**', route => route.fulfill({status: 204}));
+  await page.getByRole('button', {name: 'Show full view', exact: true}).click();
   const frame = page.frameLocator('iframe[title="Email HTML"]');
   await frame.getByRole('heading', {name: 'Browser safe HTML'}).waitFor();
-  check(await frame.locator('script,img,form,style,svg,math').count() === 0, 'Unsafe HTML survived');
-  check(await frame.locator('body [href],body [src],body [onclick]').count() === 0, 'Active content survived');
+  check(await frame.locator('img').count() > 0, 'Email image removed');
+  check(await frame.locator('a[href]').count() > 0, 'Email link removed');
   check(await page.evaluate(() => window.hacked) === undefined, 'Email script executed');
   const downloadPromise = page.waitForEvent('download');
   await page.getByRole('link', {name: 'report.txt', exact: true}).click();
@@ -49,7 +52,7 @@ async (page) => {
   check((await page.request.get(messageUrl)).status() === 404, 'Deleted message still accessible');
   await page.getByRole('button', {name: 'Sign out', exact: true}).click();
   await page.setViewportSize({width: 1280, height: 900});
-  check(unexpected.length === 0, 'Email triggered external requests: ' + unexpected.join(','));
+  check(unexpected.every(url => url.startsWith('https://tracker.invalid/')), 'Unexpected external requests: ' + unexpected.join(','));
   check(errors.length === 0, 'Browser JavaScript errors: ' + errors.join(','));
-  return {passed: ['forced password change', 'USER authorization', 'inbox delivery', 'read state', 'HTML isolation', 'no remote resources', 'attachment download', 'mobile layout', 'message deletion'], deletedMessageUrl: messageUrl};
+  return {passed: ['forced password change', 'USER authorization', 'inbox delivery', 'read state', 'HTML isolation', 'opt-in remote resources', 'attachment download', 'mobile layout', 'message deletion'], deletedMessageUrl: messageUrl};
 }

@@ -85,7 +85,7 @@ a production data directory. See [configuration](docs/configuration.md).
 | `mailserver/smtp.py` | aiosmtpd protocol hooks, rate/concurrency limits, STARTTLS |
 | `mailserver/views.py`, `forms.py`, `urls.py` | Web behavior, validation, authorization, routes |
 | `mailserver/middleware.py` | Forced-password-change gate and response security headers |
-| `mailserver/mime.py` | MIME parsing, bounded previews, HTML sanitization, attachment names |
+| `mailserver/mime.py` | Complete MIME bodies, isolated HTML preparation, CID images, attachment names |
 | `mailserver/templates/`, `static/` | Django templates, CSS, and inbox polling JavaScript |
 | `mailserver/cli.py`, `accounts.py` | CLI, noninteractive account management, strict credential archives |
 | `mailserver/upgrade.py`, `deploy/upgrade.json` | Staged native upgrade, deployment contract, code rollback |
@@ -153,9 +153,9 @@ Preserve final-admin checks, password-reset session invalidation, and required
 password changes. Save only intended model fields to avoid overwriting concurrent
 role/quota changes. The application does not use Django's stock admin site.
 
-HTML email gets nh3 sanitization, an isolated sandboxed iframe, and a stricter CSP
-than the application UI. Never weaken that policy to fix UI scripting. The iframe
-can load the application's stylesheet but not email-provided active content.
+HTML email loads only after a CSRF-protected full-view choice. Preserve the iframe
+and response sandbox, blocked scripts/forms, owner-scoped access and default text
+view. See the [message-view contract](docs/contributing/message-view.md).
 Attachment downloads are not malware scanning. The [security guide](docs/security.md)
 defines the user-visible guarantees and limitations.
 
@@ -167,8 +167,8 @@ Static assets are served through explicit views. Package-data patterns in
 
 The UI follows Swiss After Dark's Grid Rail design: charcoal and bone surfaces,
 a scarlet-edged index rail, one-email-per-row inbox, compact account table, and square
-bone primary actions. Tokens live in `static/style.css`; the sandboxed message
-stylesheet uses the same palette without permitting email-provided styles. Login
+bone primary actions. Tokens live in `static/style.css`; opt-in HTML retains sender
+styling inside its sandbox instead of forcing the application palette. Login
 uses Arial/Helvetica. Keep the mobile rail, whole-mail-row links, account-address
 edit links, table headers/horizontal keyboard scrolling, focus outlines, and
 the header's Create/Export actions consistent. There are no monitoring timelines or
@@ -300,7 +300,7 @@ Execute in order:
 5. Run the helper with `--large` for the first admin only; it also sends its two
    normal fixture messages. This scenario requires the default 25 MiB message limit.
 6. `.local/browser-security.js` checks reset login, cookie/CSRF controls, admin
-   mailbox isolation and bounded display of the maximum-size message.
+   mailbox isolation and complete display of the maximum-size message.
 
 ```sh
 python tools/smoke_smtp.py inbox.example.com browser-user@inbox.example.com admin@inbox.example.com
@@ -375,6 +375,5 @@ do not imply a license that has not been added.
 
 Useful upstream references: [Django](https://docs.djangoproject.com/en/5.2/),
 [aiosmtpd](https://aiosmtpd.aio-libs.org/en/latest/handlers.html),
-[nh3](https://nh3.readthedocs.io/en/latest/),
 [Gunicorn](https://gunicorn.org/reference/settings/), and
 [Certbot](https://eff-certbot.readthedocs.io/en/stable/using.html).

@@ -30,8 +30,10 @@ within the workspace rather than becoming tiles.
   table and storage summary. Actions wrap on narrow screens. Destructive actions
   are separated and retain their confirmation step.
 
-The exact token definitions are in `mailserver/static/style.css`. Safe HTML email
-uses `message.css` inside its sandbox; email-provided styling remains blocked.
+The exact token definitions are in `mailserver/static/style.css`. Messages start
+as complete escaped text. An explicit, warned **Show full view** action loads
+sender-styled HTML in an isolated iframe; it need not match the application's
+dark palette. **Show plain text** returns to the default without saving a preference.
 
 ![Swiss After Dark login with a synthetic mail domain](images/login.png)
 

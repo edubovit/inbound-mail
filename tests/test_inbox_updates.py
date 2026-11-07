@@ -106,7 +106,6 @@ def test_dark_theme_and_inbox_script_scope(client, alice):
 
 @pytest.mark.parametrize("path,content_type", [
     ("/assets/style.css", "text/css"),
-    ("/assets/message.css", "text/css"),
     ("/assets/inbox.js", "text/javascript"),
     ("/assets/select.js", "text/javascript"),
 ])

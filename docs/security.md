@@ -45,14 +45,26 @@ application listener private and do not trust arbitrary client proxy headers.
 
 ## Untrusted mail
 
-HTML is sanitized by an allowlist and rendered in a sandboxed iframe with its
-own restrictive CSP. Email scripts, styles, images, form controls, and active
-links are removed. The application supplies its own dark stylesheet. Plain text
-and headers are escaped; body previews are capped at 1 MiB of decoded content.
-Original bytes remain available in exports.
+Messages initially show the entire escaped plain-text body. HTML-only messages
+show escaped HTML source instead. No HTML frame or remote mail resources load
+until the reader selects **Show full view**. The choice is not saved for future
+visits. Both views can be large; the incoming message-size limit still applies.
+
+Full view preserves sender formatting, links, remote images and embedded CID
+images. Remote images, styles and fonts can track reads and expose the reader's
+IP address. They load in the browser, not through a server proxy. Browser mixed
+content and tracking policies may block some resources. Do not trust sender
+branding or links merely because they render correctly.
+
+The HTML response and iframe both enforce a sandbox without scripts, same-origin
+access, forms or top navigation. CSP denies other resource types and form actions.
+Sender base/meta tags are removed to prevent base changes and automatic refresh;
+links open new tabs with no opener or referrer. The frame sends no referrer for
+resources. This isolation also applies when its URL is opened directly. Original
+message bytes remain unchanged in storage and exports.
 
 Attachments are downloaded as files with sanitized filenames and are **not
-scanned for malware**. HTML sanitization does not make arbitrary attachments safe.
+scanned for malware**. Sandboxing mail does not make arbitrary attachments safe.
 No SPF/DKIM verification, spam scoring, or antivirus engine is included.
 
 ## Availability and delivery

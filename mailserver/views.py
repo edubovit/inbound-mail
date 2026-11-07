@@ -138,25 +138,25 @@ def own_message(request, pk):
 
 
 @login_required
+@require_http_methods(["GET", "POST"])
 def message(request, pk):
     item = own_message(request, pk)
     parsed = mime.parse(item.raw)
-    text, truncated = mime.body(parsed, "plain")
+    text = mime.body(parsed, "plain")
     has_html = parsed.get_body(preferencelist=("html",)) is not None
-    return render(request, "message.html", {"title": item.subject or "Message", "item": item, "plain": text, "truncated": truncated, "has_html": has_html, "attachments": mime.attachments(parsed)})
+    html_source = parsed.get_body(preferencelist=("plain",)) is None and has_html
+    if html_source:
+        text = mime.body(parsed, "html")
+    return render(request, "message.html", {"title": item.subject or "Message", "item": item, "plain": text, "html_source": html_source, "full": request.method == "POST" and request.POST.get("view") == "full", "has_html": has_html, "attachments": mime.attachments(parsed)})
 
 
 @login_required
+@require_GET
 def message_html(request, pk):
     item = own_message(request, pk)
-    html, truncated = mime.body(mime.parse(item.raw), "html")
-    response = HttpResponse(
-        '<!doctype html><html lang="en"><head><meta charset="utf-8">'
-        '<meta name="color-scheme" content="dark"><title>Email content</title>'
-        '<link rel="stylesheet" href="/assets/message.css"></head><body>'
-        + ("<p>Preview truncated.</p>" if truncated else "") + html + "</body></html>"
-    )
-    response["Content-Security-Policy"] = "default-src 'none'; style-src 'self'; sandbox; base-uri 'none'; form-action 'none'; frame-ancestors 'self'"
+    response = HttpResponse(mime.full_html(mime.parse(item.raw)))
+    response["Content-Security-Policy"] = "default-src 'none'; img-src https: http: data:; style-src 'unsafe-inline' https: http:; font-src https: http: data:; sandbox allow-popups allow-popups-to-escape-sandbox; base-uri 'none'; form-action 'none'; frame-ancestors 'self'"
+    response["Referrer-Policy"] = "no-referrer"
     response["X-Frame-Options"] = "SAMEORIGIN"
     return response
 
@@ -284,10 +284,6 @@ def export(request):
 
 def stylesheet(request):
     return FileResponse((settings.BASE_DIR / "static" / "style.css").open("rb"), content_type="text/css")
-
-
-def message_stylesheet(request):
-    return FileResponse((settings.BASE_DIR / "static" / "message.css").open("rb"), content_type="text/css")
 
 
 def inbox_script(request):

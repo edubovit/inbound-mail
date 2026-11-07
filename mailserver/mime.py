@@ -1,10 +1,10 @@
+import base64
+import re
 from email import policy
 from email.parser import BytesParser
-
-import nh3
-
-DISPLAY_LIMIT = 1024 * 1024
-TAGS = {"p", "br", "div", "span", "b", "strong", "i", "em", "u", "s", "blockquote", "pre", "code", "ul", "ol", "li", "h1", "h2", "h3", "h4", "hr", "table", "thead", "tbody", "tr", "th", "td", "a"}
+from html import escape
+from html.parser import HTMLParser
+from urllib.parse import unquote
 
 
 def parse(raw):
@@ -14,16 +14,61 @@ def parse(raw):
 def body(message, kind):
     part = message.get_body(preferencelist=(kind,))
     if part is None:
-        return "", False
+        return ""
     content = part.get_payload(decode=True) or b""
-    truncated = len(content) > DISPLAY_LIMIT
     try:
-        text = content[:DISPLAY_LIMIT].decode(part.get_content_charset() or "utf-8", errors="replace")
+        text = content.decode(part.get_content_charset() or "utf-8", errors="replace")
     except LookupError:
-        text = content[:DISPLAY_LIMIT].decode("utf-8", errors="replace")
-    if kind == "html":
-        text = nh3.clean(text, tags=TAGS, attributes={}, clean_content_tags={"script", "style", "svg", "math", "iframe", "object"}, url_schemes=set(), link_rel=None)
-    return text, truncated
+        text = content.decode("utf-8", errors="replace")
+    return text
+
+
+class FullHTML(HTMLParser):
+    def __init__(self):
+        super().__init__(convert_charrefs=False)
+        self.output = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag in {"base", "meta"}:
+            return
+        if tag in {"a", "area"}:
+            attrs = [(key, value) for key, value in attrs if key not in {"target", "rel", "ping"}]
+            attrs += [("target", "_blank"), ("rel", "noopener noreferrer")]
+            self.output.append("<" + tag + "".join(f' {key}="{escape(value or "", quote=True)}"' for key, value in attrs) + ">")
+        else:
+            self.output.append(self.get_starttag_text())
+
+    def handle_startendtag(self, tag, attrs):
+        self.handle_starttag(tag, attrs)
+
+    def handle_endtag(self, tag):
+        self.output.append(f"</{tag}>")
+
+    def handle_data(self, data):
+        self.output.append(data)
+
+    def handle_entityref(self, name):
+        self.output.append(f"&{name};")
+
+    def handle_charref(self, name):
+        self.output.append(f"&#{name};")
+
+    def handle_comment(self, data):
+        self.output.append(f"<!--{data}-->")
+
+
+def full_html(message):
+    html = body(message, "html")
+    images = {}
+    for part in message.walk():
+        cid = str(part.get("Content-ID", "")).strip().strip("<>")
+        if cid and part.get_content_maintype() == "image":
+            images[cid] = "data:" + part.get_content_type() + ";base64," + base64.b64encode(part.get_payload(decode=True) or b"").decode("ascii")
+    html = re.sub(r"cid:([^\s\"'<>\)]+)", lambda match: images.get(unquote(match[1]), match[0]), html, flags=re.IGNORECASE)
+    parser = FullHTML()
+    parser.feed(html)
+    parser.close()
+    return '<!doctype html><meta charset="utf-8">' + "".join(parser.output)
 
 
 def attachments(message):

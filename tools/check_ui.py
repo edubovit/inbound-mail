@@ -212,11 +212,13 @@ def check_engine(browser_type):
         page.wait_for_url(BASE + message_path)
         page.goto(BASE)
         page.locator('.mail-row').filter(has_text='Notes from the infrastructure review').click()
-        page.get_by_text("Safe HTML view", exact=True).click()
+        expect(page.locator('iframe')).to_have_count(0)
+        page.route('https://tracker.invalid/**', lambda route: route.fulfill(status=204))
+        page.get_by_role('button', name='Show full view', exact=True).click()
         frame = page.frame_locator('iframe[title="Email HTML"]')
         expect(frame.get_by_role('heading', name='Infrastructure review')).to_be_visible()
-        expect(frame.locator('body')).to_have_css('background-color', 'rgb(25, 25, 25)')
-        assert frame.locator('body script,body img,body [href],body [src]').count() == 0
+        expect(frame.locator('img')).to_have_count(1)
+        assert page.evaluate('window.hacked') is None
         with page.expect_download() as event:
             page.get_by_role('link', name='review.txt', exact=True).click()
         assert Path(event.value.path()).read_bytes() == b'Review complete.\n'

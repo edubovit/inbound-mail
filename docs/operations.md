@@ -10,7 +10,13 @@ For noninteractive management and account-only credential archives, see
 
 Sign in with a username or full address. Inbox updates automatically while the
 tab is visible and online; **Refresh** also works without JavaScript. Open a
-message to read text, expand **Safe HTML view**, or download attachments. Read
+message to read its complete plain-text body or download attachments. **Show full
+view** loads HTML formatting, links and images for that visit only. External
+content may reveal your IP address and confirm that you opened the message;
+enable it only when you accept that risk. **Show plain text** returns to text.
+HTML-only messages initially show their escaped HTML source, with nothing executed.
+Bodies are not truncated. Scripts, forms and automatic redirects stay blocked;
+links open in a new tab. Browser security may still block insecure resources. Read
 state changes only through **Mark read / Mark unread**. Deletion requires
 confirmation and has no Trash or undo.
 

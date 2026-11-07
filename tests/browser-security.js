@@ -26,8 +26,8 @@ async (page) => {
   check((await page.request.get(base + privatePath)).status() === 404, 'Admin can browse another mailbox');
   check((await page.request.get(base + privatePath + 'html/')).status() === 404, 'Admin can access another HTML body');
   await page.locator('.mail-row').filter({hasText: 'Maximum size test'}).click();
-  await page.getByText('Plain-text preview truncated at 1 MiB.', {exact: true}).waitFor();
-  check(await page.getByText('Plain-text preview truncated at 1 MiB.', {exact: true}).count() === 1, 'Large message preview is not bounded');
+  await page.locator('pre.body').waitFor();
+  check((await page.locator('pre.body').textContent()).length > 1024 * 1024, 'Large message was truncated');
   await page.getByRole('link', {name: 'Inbox', exact: true}).first().click();
   await page.screenshot({path: config.artifacts_dir + '/browser-inbox-desktop.png', fullPage: true});
   await page.getByRole('button', {name: 'Sign out', exact: true}).click();
